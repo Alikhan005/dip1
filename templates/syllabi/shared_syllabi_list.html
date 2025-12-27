@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Общие силлабусы{% endblock %}
+{% block content %}
+<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+  <div>
+    <h1 class="text-2xl font-semibold">Общие силлабусы</h1>
+    <p class="text-sm text-gray-600">Показаны силлабусы по похожим дисциплинам.</p>
+  </div>
+  <a href="{% url 'syllabi_list' %}" class="btn-secondary">Мои силлабусы</a>
+</div>
+
+<table class="table">
+  <thead>
+    <tr class="border-b">
+      <th class="p-2 text-left">Код</th>
+      <th class="p-2 text-left">Семестр</th>
+      <th class="p-2 text-left">Автор</th>
+      <th class="p-2 text-left">PDF</th>
+      <th class="p-2 text-left"></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for syllabus in syllabi %}
+    <tr class="border-b align-middle">
+      <td class="p-2">{{ syllabus.course.code }}</td>
+      <td class="p-2">{{ syllabus.semester }} / {{ syllabus.academic_year }}</td>
+      <td class="p-2 text-sm">
+        {{ syllabus.creator.get_full_name|default:syllabus.creator.username }}
+      </td>
+      <td class="p-2 text-sm">
+        {% if syllabus.pdf_file %}
+          <a href="{{ syllabus.pdf_file.url }}" class="text-blue-600 hover:underline">Скачать</a>
+        {% else %}
+          <span class="text-gray-500">Нет файла</span>
+        {% endif %}
+      </td>
+      <td class="p-2">
+        <a href="{% url 'syllabus_detail' syllabus.pk %}" class="text-blue-600 hover:underline">Открыть</a>
+      </td>
+    </tr>
+  {% empty %}
+    <tr>
+      <td colspan="5" class="p-4">Общих силлабусов по вашим предметам пока нет.</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Редактирование тем{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-2">
+  Редактирование тем, {{ syllabus.course.code }} {{ syllabus.semester }}
+</h1>
+<p class="text-sm text-slate-600 mb-4">
+  Отметьте нужные темы, задайте порядок, недели и часы. Если номер недели не указан,
+  система проставит его автоматически.
+</p>
+
+<form method="post">
+  {% csrf_token %}
+  <table class="table">
+    <thead>
+      <tr class="border-b">
+        <th class="p-2"></th>
+        <th class="p-2 text-left">Тема</th>
+        <th class="p-2 text-left">Неделя</th>
+        <th class="p-2 text-left">Часы</th>
+        <th class="p-2 text-left">Название в силлабусе</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for row in topics %}
+      <tr class="border-b">
+        <td class="p-2">
+          <input type="checkbox" name="include_{{ row.topic.id }}" {% if row.included %}checked{% endif %}>
+        </td>
+        <td class="p-2">
+          {{ row.display_title }}
+        </td>
+        <td class="p-2">
+          <input type="number" min="1" name="week_{{ row.topic.id }}" value="{{ row.week_number|default_if_none:'' }}"
+                 class="border rounded px-2 py-1 w-20">
+        </td>
+        <td class="p-2">
+          <input type="number" min="1" name="hours_{{ row.topic.id }}" value="{{ row.custom_hours|default_if_none:'' }}"
+                 class="border rounded px-2 py-1 w-20">
+          <span class="text-gray-500 text-sm ml-1">по умолчанию {{ row.topic.default_hours }}</span>
+        </td>
+        <td class="p-2">
+          <input type="text" name="title_{{ row.topic.id }}" value="{{ row.custom_title }}"
+                 class="border rounded px-2 py-1 w-full">
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <button class="mt-4 btn-primary">Сохранить структуру</button>
+</form>
+{% endblock %}

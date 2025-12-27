@@ -1,0 +1,57 @@
+from django.core.exceptions import PermissionDenied
+from syllabi.models import Syllabus
+from .models import SyllabusStatusLog
+
+
+def change_status(user, syllabus: Syllabus, new_status: str, comment: str = ""):
+    old_status = syllabus.status
+
+    if new_status == old_status:
+        return syllabus
+
+    if new_status == Syllabus.Status.SUBMITTED_DEAN:
+        if user != syllabus.creator:
+            raise PermissionDenied("Только автор силлабуса может отправить его декану.")
+        if old_status not in [Syllabus.Status.DRAFT, Syllabus.Status.REJECTED]:
+            raise PermissionDenied("Этот силлабус уже отправлен на согласование.")
+
+    if new_status == Syllabus.Status.APPROVED_DEAN:
+        if user.role != "dean":
+            raise PermissionDenied("Только декан может утверждать.")
+        if old_status != Syllabus.Status.SUBMITTED_DEAN:
+            raise PermissionDenied("Силлабус должен быть отправлен декану.")
+
+    if new_status == Syllabus.Status.REJECTED:
+        if user.role == "dean":
+            if old_status != Syllabus.Status.SUBMITTED_DEAN:
+                raise PermissionDenied("Силлабус должен быть отправлен декану.")
+        elif user.role == "umu":
+            if old_status != Syllabus.Status.SUBMITTED_UMU:
+                raise PermissionDenied("Силлабус должен быть отправлен в УМУ.")
+        else:
+            raise PermissionDenied("Отклонять могут только декан или УМУ.")
+
+    if new_status == Syllabus.Status.SUBMITTED_UMU:
+        if user.role not in ["dean", "teacher", "admin"]:
+            raise PermissionDenied("Отправлять в УМУ могут преподаватель, декан или админ.")
+        if old_status != Syllabus.Status.APPROVED_DEAN:
+            raise PermissionDenied("Сначала силлабус должен быть утвержден деканом.")
+
+    if new_status == Syllabus.Status.APPROVED_UMU:
+        if user.role != "umu":
+            raise PermissionDenied("Только УМУ может финально утверждать силлабус.")
+        if old_status != Syllabus.Status.SUBMITTED_UMU:
+            raise PermissionDenied("Силлабус должен быть отправлен в УМУ.")
+
+    syllabus.status = new_status
+    syllabus.save(update_fields=["status"])
+
+    SyllabusStatusLog.objects.create(
+        syllabus=syllabus,
+        from_status=old_status,
+        to_status=new_status,
+        changed_by=user,
+        comment=comment or "",
+    )
+
+    return syllabus

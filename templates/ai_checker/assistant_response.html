@@ -1,0 +1,15 @@
+<div class="ai-widget__bubble ai-widget__bubble--user">
+  <div class="ai-widget__label">Вы</div>
+  {% if question %}
+    <div class="ai-widget__msg">{{ question|linebreaksbr }}</div>
+  {% else %}
+    <div class="ai-widget__msg">Вопрос не задан.</div>
+  {% endif %}
+</div>
+
+<div class="ai-widget__bubble ai-widget__bubble--ai">
+  <div class="ai-widget__label">
+    AI помощник{% if model_name %} · {{ model_name }}{% endif %}
+  </div>
+  <div class="ai-widget__msg">{{ answer|linebreaksbr }}</div>
+</div>

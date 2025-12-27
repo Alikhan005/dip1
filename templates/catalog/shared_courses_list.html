@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Общие курсы{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-4">Общие курсы</h1>
+
+<table class="table">
+  <thead>
+    <tr class="border-b">
+      <th class="p-2 text-left">Код</th>
+      <th class="p-2 text-left">Название</th>
+      <th class="p-2 text-left">Автор</th>
+      <th class="p-2 text-left"></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for course in courses %}
+    <tr class="border-b">
+      <td class="p-2">{{ course.code }}</td>
+      <td class="p-2">{{ course.display_title }}</td>
+      <td class="p-2">
+        {{ course.owner.get_full_name|default:course.owner.username }}
+      </td>
+      <td class="p-2 text-right space-x-3">
+        <a href="{% url 'course_detail' course.pk %}" class="text-blue-600">Открыть</a>
+        {% if user != course.owner %}
+          <a href="{% url 'course_fork' course.pk %}" class="text-emerald-600">
+            Взять как основу
+          </a>
+        {% endif %}
+      </td>
+    </tr>
+  {% empty %}
+    <tr>
+      <td colspan="4" class="p-4">Пока нет общих курсов.</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

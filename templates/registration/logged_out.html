@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Выход{% endblock %}
+
+{% block content %}
+  <div class="max-w-md mx-auto bg-white shadow rounded p-6 text-center">
+    <h1 class="text-2xl font-semibold mb-2">Вы вышли из системы</h1>
+    <p class="text-slate-700 mb-4">
+      Сессия завершена. Если это были не вы, пожалуйста, войдите снова.
+    </p>
+    <a href="{% url 'login' %}" class="text-blue-600 font-semibold">Вернуться к входу</a>
+  </div>
+{% endblock %}

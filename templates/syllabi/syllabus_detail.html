@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title %}Силлабус {{ syllabus.course.code }}{% endblock %}
+{% block content %}
+<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-4">
+  <div>
+    <h1 class="text-2xl font-semibold">
+      Силлабус {{ syllabus.course.code }} {{ syllabus.semester }}
+    </h1>
+    <p class="text-gray-600">{{ syllabus.course.display_title }}</p>
+    <p class="text-gray-600">
+      Автор: {{ syllabus.creator.get_full_name|default:syllabus.creator.username }}
+    </p>
+    <p class="text-gray-700">
+      Статус: <span class="font-semibold">{{ syllabus.get_status_display }}</span>
+    </p>
+    <p class="text-gray-700">
+      Доступ:
+      {% if syllabus.is_shared %}
+        <span class="badge badge--shared">Общий</span>
+      {% else %}
+        <span class="badge">Личный</span>
+      {% endif %}
+    </p>
+    <p class="text-gray-700">
+      Язык: {{ syllabus.get_main_language_display }} - Недель по плану: {{ syllabus.total_weeks }}
+    </p>
+    <p class="text-sm text-gray-500">
+      Версия: {{ syllabus.version_number }} - Обновлено: {{ syllabus.updated_at|date:"d.m.Y H:i" }}
+    </p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'syllabus_edit_topics' syllabus.pk %}" class="btn-primary">Редактировать темы</a>
+    <a href="{% url 'syllabus_pdf' syllabus.pk %}" class="btn-secondary">Скачать PDF</a>
+    {% if can_share %}
+      <form method="post" action="{% url 'syllabus_toggle_share' syllabus.pk %}">
+        {% csrf_token %}
+        {% if syllabus.is_shared %}
+          <button class="btn-secondary">Скрыть от преподавателей</button>
+        {% else %}
+          <button class="btn-primary">Поделиться с преподавателями</button>
+        {% endif %}
+      </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="space-y-4 mb-6">
+  <div class="flex flex-wrap gap-3">
+    {% if can_submit_dean %}
+      <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'submitted_dean' %}" class="inline-flex items-center gap-2">
+        {% csrf_token %}
+        <input type="text" name="comment" placeholder="Комментарий" class="border rounded px-2 py-1 text-sm">
+        <button class="btn-primary">Отправить декану</button>
+      </form>
+    {% endif %}
+
+    {% if can_approve_dean %}
+      <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'approved_dean' %}" class="inline-flex items-center gap-2">
+        {% csrf_token %}
+        <input type="text" name="comment" placeholder="Комментарий" class="border rounded px-2 py-1 text-sm">
+        <button class="btn-primary">Утвердить</button>
+      </form>
+      <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'rejected' %}" class="inline-flex items-center gap-2">
+        {% csrf_token %}
+        <input type="text" name="comment" placeholder="Причина отклонения" class="border rounded px-2 py-1 text-sm">
+        <button class="btn-secondary">Отклонить</button>
+      </form>
+    {% endif %}
+
+    {% if can_submit_umu %}
+      <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'submitted_umu' %}" class="inline-flex items-center gap-2">
+        {% csrf_token %}
+        <input type="text" name="comment" placeholder="Комментарий" class="border rounded px-2 py-1 text-sm">
+        <button class="btn-primary">Отправить в УМУ</button>
+      </form>
+    {% endif %}
+
+    {% if can_approve_umu %}
+      <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'approved_umu' %}" class="inline-flex items-center gap-2">
+        {% csrf_token %}
+        <input type="text" name="comment" placeholder="Комментарий" class="border rounded px-2 py-1 text-sm">
+        <button class="btn-primary">Финально утвердить</button>
+      </form>
+    {% endif %}
+
+    {% if can_reject_umu %}
+      <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'rejected' %}" class="inline-flex items-center gap-2">
+        {% csrf_token %}
+        <input type="text" name="comment" placeholder="Причина отклонения" class="border rounded px-2 py-1 text-sm">
+        <button class="btn-secondary">Отклонить</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <div class="bg-white rounded shadow p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <p class="font-semibold">Подписанный файл</p>
+      {% if syllabus.pdf_file %}
+        <a href="{{ syllabus.pdf_file.url }}" class="text-blue-600 text-sm">Скачать текущий файл</a>
+      {% else %}
+        <p class="text-gray-600 text-sm">Файл пока не загружен.</p>
+      {% endif %}
+      {% if syllabus.is_shared %}
+        <p class="text-xs text-slate-500">Этот файл виден другим преподавателям по похожим дисциплинам.</p>
+      {% endif %}
+    </div>
+    {% if can_upload %}
+      <form method="post" action="{% url 'syllabus_upload_file' syllabus.pk %}" enctype="multipart/form-data" class="flex items-center gap-2">
+        {% csrf_token %}
+        <input type="file" name="attachment" class="text-sm">
+        <button class="btn-secondary">Загрузить/заменить</button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="flex items-center gap-3 mb-4">
+  <form method="post" action="{% url 'ai_check_run' syllabus.pk %}">
+    {% csrf_token %}
+    <button class="btn-primary">Запустить AI-проверку</button>
+  </form>
+</div>
+
+{% if syllabus.ai_checks.exists %}
+  <div class="mb-6">
+    <h3 class="text-lg font-semibold mb-2">История AI-проверок</h3>
+    <ul class="list-disc ml-6 space-y-1">
+      {% for check in syllabus.ai_checks.all %}
+        <li>
+          <a href="{% url 'ai_check_detail' check.pk %}" class="text-blue-600">
+            {{ check.created_at|date:"d.m.Y H:i" }} - {{ check.model_name }}
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}
+
+{% if syllabus.status_logs.exists %}
+  <div class="mb-6">
+    <h3 class="text-lg font-semibold mb-2">Журнал согласования</h3>
+    <div class="bg-white rounded shadow divide-y">
+      {% for log in syllabus.status_logs.all %}
+        <div class="px-4 py-2 text-sm">
+          <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <span class="font-medium">{{ log.from_status_label }} -> {{ log.to_status_label }}</span>
+              {% if log.comment %}
+                <span class="text-gray-500 ml-2">{{ log.comment }}</span>
+              {% endif %}
+            </div>
+            <div class="text-gray-500">
+              {{ log.changed_at|date:"d.m.Y H:i" }}
+              {% if log.changed_by %}
+                - {{ log.changed_by.get_full_name|default:log.changed_by.username }}
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+
+<h2 class="text-xl font-semibold mb-2">Темы и структура</h2>
+<table class="table">
+  <thead>
+    <tr class="border-b">
+      <th class="p-2 text-left">Неделя</th>
+      <th class="p-2 text-left">Тема</th>
+      <th class="p-2 text-left">Часы</th>
+      <th class="p-2 text-left">Тип</th>
+      <th class="p-2 text-left">Материалы</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for st in topics %}
+      <tr class="border-b align-top">
+        <td class="p-2">{{ st.week_number }}</td>
+        <td class="p-2">{{ st.get_title }}</td>
+        <td class="p-2">{{ st.custom_hours|default:st.topic.default_hours }}</td>
+        <td class="p-2">{{ st.topic.get_week_type_display }}</td>
+        <td class="p-2 text-sm">
+          <details>
+            <summary class="cursor-pointer text-blue-600">Смотреть</summary>
+            <div class="mt-2 space-y-2">
+              {% if st.topic.description_ru or st.topic.description_en or st.topic.description_kz %}
+                <div class="text-slate-600">
+                  {{ st.topic.description_ru|default:st.topic.description_en|default:st.topic.description_kz }}
+                </div>
+              {% endif %}
+              <div>
+                <div class="font-medium text-slate-700">Литература</div>
+                {% if st.topic.literature.all %}
+                  <ul class="list-disc ml-5 text-slate-600">
+                    {% for lit in st.topic.literature.all %}
+                      <li>
+                        {{ lit.title }}
+                        {% if lit.author %} - {{ lit.author }}{% endif %}
+                        {% if lit.year %} ({{ lit.year }}){% endif %}
+                        <span class="text-slate-400">- {{ lit.get_lit_type_display }}</span>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <p class="text-slate-500">Нет записей.</p>
+                {% endif %}
+              </div>
+              <div>
+                <div class="font-medium text-slate-700">Контрольные вопросы</div>
+                {% if st.topic.questions.all %}
+                  <ul class="list-disc ml-5 text-slate-600">
+                    {% for q in st.topic.questions.all %}
+                      <li>{{ q.question_ru|default:q.question_en|default:q.question_kz }}</li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <p class="text-slate-500">Нет записей.</p>
+                {% endif %}
+              </div>
+            </div>
+          </details>
+        </td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="5" class="p-4">Темы в силлабусе пока не выбраны.</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

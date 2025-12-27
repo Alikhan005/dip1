@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56" fill="none">
+  <defs>
+    <linearGradient id="aiGradient" x1="10" y1="8" x2="46" y2="48" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#1D4ED8"/>
+    </linearGradient>
+  </defs>
+  <circle cx="28" cy="28" r="27" fill="url(#aiGradient)"/>
+  <circle cx="28" cy="28" r="20" fill="#0F172A" opacity="0.2"/>
+  <circle cx="18" cy="18" r="2.6" fill="#FFFFFF"/>
+  <circle cx="38" cy="18" r="2.6" fill="#FFFFFF"/>
+  <circle cx="18" cy="38" r="2.6" fill="#FFFFFF"/>
+  <circle cx="38" cy="38" r="2.6" fill="#FFFFFF"/>
+  <text x="28" y="34" text-anchor="middle" font-family="Manrope, Arial, sans-serif" font-size="16" font-weight="700" fill="#FFFFFF">AI</text>
+</svg>

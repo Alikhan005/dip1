@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}Панель управления{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-3xl font-bold">Панель управления — {{ user.get_role_display }}</h1>
+  <p class="text-gray-600 mt-2">
+    {% if user.role == "teacher" or user.role == "program_leader" %}
+      Управляйте курсами, темами и силлабусами в едином пространстве AlmaU.
+    {% elif user.role == "dean" %}
+      Просматривайте силлабусы на согласовании и принимайте решения как декан.
+    {% elif user.role == "umu" %}
+      Финальное согласование силлабусов и контроль качества в УМУ.
+    {% else %}
+      Административная панель управления системой и процессом согласования.
+    {% endif %}
+  </p>
+</div>
+
+{% if user.role == "teacher" or user.role == "program_leader" %}
+  <div class="grid gap-4 md:grid-cols-4">
+    <div class="card p-5 flex flex-col justify-between">
+      <div>
+        <h2 class="text-xl font-semibold mb-2">Мои курсы</h2>
+        <p class="text-gray-600 text-sm mb-3">
+          Создавайте и редактируйте курсы, ведите банк тем и материалов.
+        </p>
+        <span class="text-sm text-gray-500">{{ my_courses_count }} курс(ов)</span>
+      </div>
+      <div class="mt-4">
+        <a href="{% url 'courses_list' %}" class="btn-primary inline-block">Открыть</a>
+      </div>
+    </div>
+
+    <div class="card p-5 flex flex-col justify-between">
+      <div>
+        <h2 class="text-xl font-semibold mb-2">Общие курсы</h2>
+        <p class="text-gray-600 text-sm mb-3">
+          Используйте общие курсы коллег как основу и адаптируйте под себя.
+        </p>
+        <span class="text-sm text-gray-500">{{ shared_courses_count }} курс(ов)</span>
+      </div>
+      <div class="mt-4">
+        <a href="{% url 'shared_courses_list' %}" class="btn-primary inline-block">Открыть</a>
+      </div>
+    </div>
+
+    <div class="card p-5 flex flex-col justify-between">
+      <div>
+        <h2 class="text-xl font-semibold mb-2">Мои силлабусы</h2>
+        <p class="text-gray-600 text-sm mb-3">
+          Собирайте силлабусы на семестр и отправляйте на согласование.
+        </p>
+        <span class="text-sm text-gray-500">{{ syllabi_count }} силлабус(ов)</span>
+      </div>
+      <div class="mt-4">
+        <a href="{% url 'syllabi_list' %}" class="btn-primary inline-block">Открыть</a>
+      </div>
+    </div>
+
+    <div class="card p-5 flex flex-col justify-between">
+      <div>
+        <h2 class="text-xl font-semibold mb-2">Общие силлабусы</h2>
+        <p class="text-gray-600 text-sm mb-3">
+          Просматривайте силлабусы по похожим дисциплинам коллег.
+        </p>
+        <span class="text-sm text-gray-500">{{ shared_syllabi_count }} силлабус(ов)</span>
+      </div>
+      <div class="mt-4">
+        <a href="{% url 'shared_syllabi_list' %}" class="btn-primary inline-block">Открыть</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="card p-5 mt-6">
+    <h2 class="text-xl font-semibold mb-3">Первые шаги</h2>
+    <ol class="list-decimal ml-6 text-slate-600 space-y-2">
+      <li>Создайте курс и заполните банк тем (названия, часы, литература).</li>
+      <li>Соберите силлабус на семестр или загрузите старый PDF для ориентира.</li>
+      <li>Проверьте недели, часы и отправьте на согласование.</li>
+    </ol>
+    <div class="flex flex-wrap gap-2 mt-4">
+      <a href="{% url 'course_create' %}" class="btn-primary">Создать курс</a>
+      <a href="{% url 'syllabus_create' %}" class="btn-secondary">Создать силлабус</a>
+      <a href="{% url 'syllabus_create' %}#upload" class="btn-secondary">Загрузить PDF</a>
+    </div>
+  </div>
+
+  <div class="card p-5 mt-6">
+    <h2 class="text-xl font-semibold mb-3">Мои заявки на согласование</h2>
+    {% if my_reviews %}
+      <div class="space-y-3">
+        {% for syllabus in my_reviews %}
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b pb-2">
+            <div>
+              <div class="font-medium">{{ syllabus.course.code }} {{ syllabus.semester }}</div>
+              <div class="text-sm text-slate-500">{{ syllabus.get_status_display }}</div>
+            </div>
+            <a href="{% url 'syllabus_detail' syllabus.pk %}" class="text-blue-600 hover:underline">Открыть</a>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-sm text-slate-500">Пока нет заявок на согласование.</p>
+    {% endif %}
+  </div>
+{% else %}
+  <div class="grid gap-4 md:grid-cols-2">
+    <div class="card p-5 flex flex-col justify-between">
+      <div>
+        <h2 class="text-xl font-semibold mb-2">Все силлабусы</h2>
+        <p class="text-gray-600 text-sm mb-3">
+          Просматривайте силлабусы по всем курсам и управляйте статусами.
+        </p>
+      </div>
+      <div class="mt-4">
+        <a href="{% url 'syllabi_list' %}" class="btn-primary inline-block">Открыть список</a>
+      </div>
+    </div>
+
+    <div class="card p-5 flex flex-col justify-between">
+      <div>
+        <h2 class="text-xl font-semibold mb-2">Общие курсы</h2>
+        <p class="text-gray-600 text-sm mb-3">
+          Смотрите базы тем и материалов для согласования.
+        </p>
+      </div>
+      <div class="mt-4">
+        <a href="{% url 'shared_courses_list' %}" class="btn-secondary inline-block">Открыть</a>
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+{% if user.role == "dean" or user.role == "admin" %}
+  <div class="card p-5 mt-6">
+    <h2 class="text-xl font-semibold mb-3">На согласовании у декана</h2>
+    {% if pending_dean %}
+      <div class="space-y-3">
+        {% for syllabus in pending_dean %}
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b pb-2">
+            <div>
+              <div class="font-medium">{{ syllabus.course.code }} {{ syllabus.semester }}</div>
+              <div class="text-sm text-slate-500">
+                Автор: {{ syllabus.creator.get_full_name|default:syllabus.creator.username }}
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <a href="{% url 'syllabus_detail' syllabus.pk %}" class="btn-secondary">Открыть</a>
+              {% if user.role == "dean" %}
+                <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'approved_dean' %}">
+                  {% csrf_token %}
+                  <button class="btn-primary">Утвердить</button>
+                </form>
+                <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'rejected' %}">
+                  {% csrf_token %}
+                  <button class="btn-secondary">Отклонить</button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-sm text-slate-500">Нет заявок на согласовании.</p>
+    {% endif %}
+  </div>
+{% endif %}
+
+{% if user.role == "umu" or user.role == "admin" %}
+  <div class="card p-5 mt-6">
+    <h2 class="text-xl font-semibold mb-3">На согласовании в УМУ</h2>
+    {% if pending_umu %}
+      <div class="space-y-3">
+        {% for syllabus in pending_umu %}
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b pb-2">
+            <div>
+              <div class="font-medium">{{ syllabus.course.code }} {{ syllabus.semester }}</div>
+              <div class="text-sm text-slate-500">
+                Автор: {{ syllabus.creator.get_full_name|default:syllabus.creator.username }}
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <a href="{% url 'syllabus_detail' syllabus.pk %}" class="btn-secondary">Открыть</a>
+              {% if user.role == "umu" %}
+                <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'approved_umu' %}">
+                  {% csrf_token %}
+                  <button class="btn-primary">Утвердить</button>
+                </form>
+                <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'rejected' %}">
+                  {% csrf_token %}
+                  <button class="btn-secondary">Отклонить</button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-sm text-slate-500">Нет заявок на согласовании.</p>
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}

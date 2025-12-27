@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Новый силлабус{% endblock %}
+{% block content %}
+<div class="flex flex-col gap-2 mb-6">
+  <h1 class="text-2xl font-semibold">Новый силлабус</h1>
+  <p class="text-sm text-slate-600">
+    Заполните базовые данные, выберите стартовую структуру и при необходимости загрузите старый PDF.
+  </p>
+</div>
+
+{% if form.non_field_errors %}
+  <div class="card p-4 border border-red-200 bg-red-50 text-red-700 mb-4">
+    {{ form.non_field_errors }}
+  </div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="space-y-5">
+  {% csrf_token %}
+
+  <div class="card p-5">
+    <h2 class="text-lg font-semibold mb-4">1. Основные данные</h2>
+    <div class="grid gap-4 md:grid-cols-2">
+      <div>
+        <label for="{{ form.course.id_for_label }}">{{ form.course.label }}</label>
+        {{ form.course }}
+        {% if form.course.errors %}
+          <p class="text-sm text-red-600">{{ form.course.errors|striptags }}</p>
+        {% endif %}
+      </div>
+      <div>
+        <label for="{{ form.semester.id_for_label }}">{{ form.semester.label }}</label>
+        {{ form.semester }}
+        {% if form.semester.errors %}
+          <p class="text-sm text-red-600">{{ form.semester.errors|striptags }}</p>
+        {% endif %}
+      </div>
+      <div>
+        <label for="{{ form.academic_year.id_for_label }}">{{ form.academic_year.label }}</label>
+        {{ form.academic_year }}
+        {% if form.academic_year.errors %}
+          <p class="text-sm text-red-600">{{ form.academic_year.errors|striptags }}</p>
+        {% endif %}
+      </div>
+      <div>
+        <label for="{{ form.total_weeks.id_for_label }}">{{ form.total_weeks.label }}</label>
+        {{ form.total_weeks }}
+        {% if form.total_weeks.errors %}
+          <p class="text-sm text-red-600">{{ form.total_weeks.errors|striptags }}</p>
+        {% endif %}
+      </div>
+      <div class="md:col-span-2">
+        <label for="{{ form.main_language.id_for_label }}">{{ form.main_language.label }}</label>
+        {{ form.main_language }}
+        {% if form.main_language.errors %}
+          <p class="text-sm text-red-600">{{ form.main_language.errors|striptags }}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="card p-5">
+    <h2 class="text-lg font-semibold mb-4">2. Стартовая структура</h2>
+    <div class="grid gap-4 md:grid-cols-2">
+      <div>
+        <label for="{{ form.copy_from.id_for_label }}">{{ form.copy_from.label }}</label>
+        {{ form.copy_from }}
+        {% if form.copy_from.help_text %}
+          <p class="text-sm text-slate-500 mt-1">{{ form.copy_from.help_text }}</p>
+        {% endif %}
+        {% if form.copy_from.errors %}
+          <p class="text-sm text-red-600">{{ form.copy_from.errors|striptags }}</p>
+        {% endif %}
+      </div>
+      <div class="flex flex-col justify-center">
+        <label class="flex items-center gap-2 text-sm text-slate-700">
+          {{ form.prefill_topics }}
+          <span>{{ form.prefill_topics.label }}</span>
+        </label>
+        {% if form.prefill_topics.help_text %}
+          <p class="text-sm text-slate-500 mt-1">{{ form.prefill_topics.help_text }}</p>
+        {% endif %}
+        {% if form.prefill_topics.errors %}
+          <p class="text-sm text-red-600">{{ form.prefill_topics.errors|striptags }}</p>
+        {% endif %}
+      </div>
+    </div>
+    <p class="text-sm text-slate-600 mt-4">
+      Совет: если выбрали прошлый силлабус, его темы будут скопированы, а порядок и часы можно быстро поправить.
+    </p>
+  </div>
+
+  <div id="upload" class="card p-5">
+    <h2 class="text-lg font-semibold mb-2">3. Файл старого силлабуса (опционально)</h2>
+    <p class="text-sm text-slate-600 mb-4">
+      Загрузите старый PDF, чтобы хранить его рядом и заменить финальную версию после согласования.
+    </p>
+    <div>
+      <label for="{{ form.pdf_file.id_for_label }}">{{ form.pdf_file.label }}</label>
+      {{ form.pdf_file }}
+      {% if form.pdf_file.help_text %}
+        <p class="text-sm text-slate-500 mt-1">{{ form.pdf_file.help_text }}</p>
+      {% endif %}
+      {% if form.pdf_file.errors %}
+        <p class="text-sm text-red-600">{{ form.pdf_file.errors|striptags }}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="flex flex-wrap gap-3">
+    <button class="btn-primary">Создать и перейти к темам</button>
+    <a href="{% url 'syllabi_list' %}" class="btn-secondary">Отмена</a>
+  </div>
+</form>
+{% endblock %}

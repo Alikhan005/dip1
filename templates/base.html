@@ -1,0 +1,148 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}AlmaU Syllabus{% endblock %}</title>
+  <link rel="icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/htmx.org@2.0.0"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="{% static 'css/style.css' %}?v=4">
+</head>
+<body class="bg-slate-100 text-slate-800">
+  <nav class="bg-white shadow-sm border-b border-slate-200 site-nav">
+    <div class="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between site-nav__inner">
+      <div class="flex items-center space-x-3 site-nav__brand">
+        <img src="{% static 'img/logo.png' %}" alt="AlmaU" class="h-8 w-auto">
+        {% if user.is_authenticated %}
+          <a href="{% url 'dashboard' %}" class="font-semibold hover:text-blue-700">AlmaU Syllabus</a>
+        {% else %}
+          <span class="font-semibold">AlmaU Syllabus</span>
+        {% endif %}
+        {% if user.is_authenticated %}
+          <div class="hidden sm:flex items-center space-x-4 ml-6 site-nav__links">
+            <a href="{% url 'courses_list' %}" class="nav-link">Курсы</a>
+            <a href="{% url 'shared_courses_list' %}" class="nav-link">Общие курсы</a>
+            <a href="{% url 'syllabi_list' %}" class="nav-link">Силлабусы</a>
+            <a href="{% url 'shared_syllabi_list' %}" class="nav-link">Общие силлабусы</a>
+          </div>
+        {% endif %}
+      </div>
+      <div class="flex items-center space-x-3 site-nav__user">
+        {% if user.is_authenticated %}
+          <a href="{% url 'profile' %}" class="nav-link">Профиль</a>
+          <span class="text-sm text-gray-700">{{ user.get_full_name|default:user.username }}</span>
+          <a href="{% url 'logout' %}" class="btn-secondary">Выйти</a>
+        {% else %}
+          {% if request.path != '/accounts/login/' and request.path != '/' %}
+            <a href="{% url 'login' %}" class="btn-secondary">Войти</a>
+          {% endif %}
+          {% if request.path != '/accounts/signup/' %}
+            <a href="{% url 'signup' %}" class="btn-primary">Регистрация</a>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-6xl mx-auto px-6 py-6 page-container">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% if user.is_authenticated %}
+    <div class="ai-widget" data-ai-widget>
+      <button
+        type="button"
+        class="ai-widget__toggle"
+        data-ai-toggle
+        aria-expanded="false"
+        aria-controls="ai-widget-panel"
+        aria-label="Открыть AI помощника"
+        title="AI помощник"
+      >
+        <img src="{% static 'img/ai.svg' %}" alt="AI помощник" class="ai-widget__icon" width="28" height="28" loading="lazy" decoding="async">
+      </button>
+      <section id="ai-widget-panel" class="ai-widget__panel" data-ai-panel aria-hidden="true" hidden>
+        <div class="ai-widget__header">
+          <div>
+            <div class="ai-widget__title">AI помощник</div>
+            <div class="ai-widget__subtitle">Подскажу по структуре и заполнению силлабуса.</div>
+          </div>
+          <button type="button" class="ai-widget__close" data-ai-close aria-label="Закрыть">&times;</button>
+        </div>
+        <div id="ai-widget-history" class="ai-widget__history">
+          <div class="ai-widget__bubble ai-widget__bubble--ai">
+            <div class="ai-widget__label">AI помощник</div>
+            <div class="ai-widget__msg">Здравствуйте! Помогу с темами, неделями, часами и литературой.</div>
+          </div>
+        </div>
+        <form
+          class="ai-widget__form"
+          hx-post="{% url 'ai_assistant' %}"
+          hx-target="#ai-widget-history"
+          hx-swap="beforeend"
+          hx-indicator="#ai-widget-status"
+          hx-on:htmx:afterRequest="this.reset()"
+        >
+          {% csrf_token %}
+          <input type="hidden" name="syllabus_id" value="{{ syllabus.pk|default:'' }}">
+          <textarea
+            name="message"
+            class="ai-widget__input"
+            rows="2"
+            placeholder="Спросите: что нужно исправить в силлабусе?"
+          ></textarea>
+          <div class="ai-widget__actions">
+            <button type="submit" class="ai-widget__send">Отправить</button>
+            <span id="ai-widget-status" class="ai-widget__status" aria-live="polite">Думаю...</span>
+          </div>
+        </form>
+        <div class="ai-widget__hint">Можно спрашивать про темы, недели, часы, литературу и структуру.</div>
+      </section>
+    </div>
+  {% endif %}
+
+  <script>
+    (function () {
+      const widget = document.querySelector("[data-ai-widget]");
+      if (!widget) return;
+      const toggle = widget.querySelector("[data-ai-toggle]");
+      const closeBtn = widget.querySelector("[data-ai-close]");
+      const panel = widget.querySelector("[data-ai-panel]");
+
+      const setOpen = (isOpen) => {
+        widget.classList.toggle("ai-widget--open", isOpen);
+        toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+        panel.setAttribute("aria-hidden", isOpen ? "false" : "true");
+        panel.hidden = !isOpen;
+      };
+
+      toggle.addEventListener("click", (event) => {
+        event.stopPropagation();
+        setOpen(!widget.classList.contains("ai-widget--open"));
+      });
+
+      closeBtn.addEventListener("click", (event) => {
+        event.stopPropagation();
+        setOpen(false);
+      });
+
+      document.addEventListener("click", (event) => {
+        if (!widget.contains(event.target)) {
+          setOpen(false);
+        }
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          setOpen(false);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

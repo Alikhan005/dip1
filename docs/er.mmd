@@ -1,0 +1,93 @@
+erDiagram
+    USER ||--o{ COURSE : owns
+    USER ||--o{ SYLLABUS : creates
+    USER ||--o{ SYLLABUS_STATUS_LOG : changes
+    COURSE ||--o{ TOPIC : has
+    COURSE ||--o{ SYLLABUS : has
+    TOPIC ||--o{ TOPIC_LITERATURE : has
+    TOPIC ||--o{ TOPIC_QUESTION : has
+    SYLLABUS ||--o{ SYLLABUS_TOPIC : includes
+    TOPIC ||--o{ SYLLABUS_TOPIC : referenced
+    SYLLABUS ||--o{ AI_CHECK_RESULT : checks
+    SYLLABUS ||--o{ SYLLABUS_STATUS_LOG : status
+
+    USER {
+        int id PK
+        string username
+        string role
+        string faculty
+        string department
+    }
+    COURSE {
+        int id PK
+        int owner_id FK
+        string code
+        string title_ru
+        string title_kz
+        string title_en
+        bool is_shared
+    }
+    TOPIC {
+        int id PK
+        int course_id FK
+        int order_index
+        string title_ru
+        string title_kz
+        string title_en
+        int default_hours
+        string week_type
+        bool is_active
+    }
+    TOPIC_LITERATURE {
+        int id PK
+        int topic_id FK
+        string title
+        string author
+        string year
+        string lit_type
+    }
+    TOPIC_QUESTION {
+        int id PK
+        int topic_id FK
+        string question_ru
+        string question_kz
+        string question_en
+    }
+    SYLLABUS {
+        int id PK
+        int course_id FK
+        int creator_id FK
+        string semester
+        string academic_year
+        string status
+        int total_weeks
+        string main_language
+        bool is_shared
+        int version_number
+    }
+    SYLLABUS_TOPIC {
+        int id PK
+        int syllabus_id FK
+        int topic_id FK
+        int week_number
+        bool is_included
+        string custom_title
+        int custom_hours
+    }
+    SYLLABUS_STATUS_LOG {
+        int id PK
+        int syllabus_id FK
+        int changed_by_id FK
+        string from_status
+        string to_status
+        string comment
+        datetime changed_at
+    }
+    AI_CHECK_RESULT {
+        int id PK
+        int syllabus_id FK
+        datetime created_at
+        string model_name
+        text summary
+        json raw_result
+    }

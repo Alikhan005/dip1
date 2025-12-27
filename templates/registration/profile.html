@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Профиль{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto">
+  <div class="mb-6">
+    <h1 class="text-2xl font-semibold">Профиль</h1>
+    <p class="text-sm text-slate-600">Обновите контактные данные и информацию о кафедре.</p>
+  </div>
+
+  <div class="card p-5 mb-5">
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <div class="text-sm text-slate-500">Имя пользователя</div>
+        <div class="font-semibold">{{ user.username }}</div>
+      </div>
+      <div>
+        <div class="text-sm text-slate-500">Роль</div>
+        <div class="font-semibold">{{ user.get_role_display }}</div>
+      </div>
+    </div>
+  </div>
+
+  <form method="post" class="card p-5 space-y-4">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="text-sm text-red-600">{{ form.non_field_errors|striptags }}</div>
+    {% endif %}
+    <div class="grid gap-4 md:grid-cols-2">
+      <div>
+        <label for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
+        {{ form.first_name }}
+        {% if form.first_name.errors %}
+          <p class="text-sm text-red-600">{{ form.first_name.errors|striptags }}</p>
+        {% endif %}
+      </div>
+      <div>
+        <label for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }}</label>
+        {{ form.last_name }}
+        {% if form.last_name.errors %}
+          <p class="text-sm text-red-600">{{ form.last_name.errors|striptags }}</p>
+        {% endif %}
+      </div>
+      <div class="md:col-span-2">
+        <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+        {{ form.email }}
+        {% if form.email.errors %}
+          <p class="text-sm text-red-600">{{ form.email.errors|striptags }}</p>
+        {% endif %}
+      </div>
+      <div>
+        <label for="{{ form.faculty.id_for_label }}">{{ form.faculty.label }}</label>
+        {{ form.faculty }}
+        {% if form.faculty.errors %}
+          <p class="text-sm text-red-600">{{ form.faculty.errors|striptags }}</p>
+        {% endif %}
+      </div>
+      <div>
+        <label for="{{ form.department.id_for_label }}">{{ form.department.label }}</label>
+        {{ form.department }}
+        {% if form.department.errors %}
+          <p class="text-sm text-red-600">{{ form.department.errors|striptags }}</p>
+        {% endif %}
+      </div>
+    </div>
+    <div class="flex flex-wrap gap-3">
+      <button class="btn-primary">Сохранить</button>
+      <a href="{% url 'dashboard' %}" class="btn-secondary">Назад</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

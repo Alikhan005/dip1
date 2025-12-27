@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: "DejaVu Sans", Arial, sans-serif;
+      font-size: 12px;
+      color: #0f172a;
+      line-height: 1.4;
+    }
+    .header {
+      padding-bottom: 12px;
+      border-bottom: 2px solid #0f172a;
+      margin-bottom: 16px;
+    }
+    .title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .meta {
+      font-size: 11px;
+      color: #475569;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 6px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #f1f5f9;
+      font-weight: 600;
+    }
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 18px;
+    }
+    .topic {
+      margin-top: 12px;
+      padding: 8px 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+    }
+    .topic-title {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .topic-meta {
+      font-size: 11px;
+      color: #64748b;
+      margin-bottom: 6px;
+    }
+    ul {
+      margin: 4px 0 0 16px;
+      padding: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">Силлабус по курсу {{ syllabus.course.display_title }}</div>
+    <div class="meta">
+      Код: {{ syllabus.course.code }} - Семестр: {{ syllabus.semester }} - Уч. год: {{ syllabus.academic_year }}
+    </div>
+    <div class="meta">
+      Статус: {{ syllabus.get_status_display }} - Язык: {{ syllabus.get_main_language_display }}
+    </div>
+  </div>
+
+  <div class="section-title">Структура по неделям</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Неделя</th>
+        <th>Тема</th>
+        <th>Часы</th>
+        <th>Тип</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for st in topics %}
+        <tr>
+          <td>{{ st.week_number }}</td>
+          <td>{{ st.get_title }}</td>
+          <td>{{ st.custom_hours|default:st.topic.default_hours }}</td>
+          <td>{{ st.topic.get_week_type_display }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="section-title">Материалы по темам</div>
+  {% for st in topics %}
+    <div class="topic">
+      <div class="topic-title">{{ st.week_number }}. {{ st.get_title }}</div>
+      <div class="topic-meta">
+        Тип: {{ st.topic.get_week_type_display }} - Часы: {{ st.custom_hours|default:st.topic.default_hours }}
+      </div>
+      {% if st.topic.description_ru or st.topic.description_en or st.topic.description_kz %}
+        <div>{{ st.topic.description_ru|default:st.topic.description_en|default:st.topic.description_kz }}</div>
+      {% endif %}
+      <div class="topic-meta">Литература</div>
+      {% if st.topic.literature.all %}
+        <ul>
+          {% for lit in st.topic.literature.all %}
+            <li>
+              {{ lit.title }}
+              {% if lit.author %} - {{ lit.author }}{% endif %}
+              {% if lit.year %} ({{ lit.year }}){% endif %}
+              - {{ lit.get_lit_type_display }}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="topic-meta">Нет записей.</div>
+      {% endif %}
+      <div class="topic-meta" style="margin-top: 6px;">Контрольные вопросы</div>
+      {% if st.topic.questions.all %}
+        <ul>
+          {% for q in st.topic.questions.all %}
+            <li>{{ q.question_ru|default:q.question_en|default:q.question_kz }}</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="topic-meta">Нет записей.</div>
+      {% endif %}
+    </div>
+  {% endfor %}
+</body>
+</html>

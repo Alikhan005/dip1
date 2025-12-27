@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Регистрация{% endblock %}
+{% block content %}
+<div class="min-h-[70vh] flex items-center justify-center">
+  <div class="card w-full max-w-xl p-8">
+    <h1 class="text-2xl font-semibold mb-4">Регистрация</h1>
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="text-sm text-red-600">{{ form.non_field_errors|striptags }}</div>
+      {% endif %}
+      <div>
+        <label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>
+        {{ form.username }}
+        {% if form.username.errors %}
+          <p class="text-sm text-red-600">{{ form.username.errors|striptags }}</p>
+        {% endif %}
+      </div>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
+          {{ form.first_name }}
+          {% if form.first_name.errors %}
+            <p class="text-sm text-red-600">{{ form.first_name.errors|striptags }}</p>
+          {% endif %}
+        </div>
+        <div>
+          <label for="{{ form.last_name.id_for_label }}">{{ form.last_name.label }}</label>
+          {{ form.last_name }}
+          {% if form.last_name.errors %}
+            <p class="text-sm text-red-600">{{ form.last_name.errors|striptags }}</p>
+          {% endif %}
+        </div>
+      </div>
+      <div>
+        <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+        {{ form.email }}
+        {% if form.email.errors %}
+          <p class="text-sm text-red-600">{{ form.email.errors|striptags }}</p>
+        {% endif %}
+      </div>
+      <div>
+        <label for="{{ form.role.id_for_label }}">{{ form.role.label }}</label>
+        {{ form.role }}
+        {% if form.role.help_text %}
+          <p class="text-sm text-slate-500 mt-1">{{ form.role.help_text }}</p>
+        {% endif %}
+        {% if form.role.errors %}
+          <p class="text-sm text-red-600">{{ form.role.errors|striptags }}</p>
+        {% endif %}
+      </div>
+      <div>
+        <label for="{{ form.faculty.id_for_label }}">{{ form.faculty.label }}</label>
+        {{ form.faculty }}
+        {% if form.faculty.errors %}
+          <p class="text-sm text-red-600">{{ form.faculty.errors|striptags }}</p>
+        {% endif %}
+      </div>
+      <div>
+        <label for="{{ form.department.id_for_label }}">{{ form.department.label }}</label>
+        {{ form.department }}
+        {% if form.department.errors %}
+          <p class="text-sm text-red-600">{{ form.department.errors|striptags }}</p>
+        {% endif %}
+      </div>
+      <div>
+        <label for="{{ form.password1.id_for_label }}">{{ form.password1.label }}</label>
+        {{ form.password1 }}
+        {% if form.password1.errors %}
+          <p class="text-sm text-red-600">{{ form.password1.errors|striptags }}</p>
+        {% endif %}
+      </div>
+      <div>
+        <label for="{{ form.password2.id_for_label }}">{{ form.password2.label }}</label>
+        {{ form.password2 }}
+        {% if form.password2.errors %}
+          <p class="text-sm text-red-600">{{ form.password2.errors|striptags }}</p>
+        {% endif %}
+      </div>
+      <button class="btn-primary w-full text-center">Создать аккаунт</button>
+    </form>
+    <p class="text-sm text-gray-600 mt-4 text-center">
+      Уже есть аккаунт?
+      <a href="{% url 'login' %}" class="text-blue-600 hover:underline">Войти</a>
+    </p>
+  </div>
+</div>
+{% endblock %}
