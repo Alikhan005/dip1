@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Подтверждение email{% endblock %}
+{% block content %}
+<div class="min-h-[70vh] flex items-center justify-center">
+  <div class="card w-full max-w-md p-8">
+    <h1 class="text-2xl font-semibold mb-2">Подтверждение email</h1>
+    <p class="text-sm text-slate-600 mb-4">Введите код из письма, чтобы активировать аккаунт.</p>
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+        <div class="text-sm text-red-600">{{ form.non_field_errors|striptags }}</div>
+      {% endif %}
+      <div>
+        <label for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+        {{ form.email }}
+        {% if form.email.errors %}
+          <p class="text-sm text-red-600">{{ form.email.errors|striptags }}</p>
+        {% endif %}
+      </div>
+      <div>
+        <label for="{{ form.code.id_for_label }}">{{ form.code.label }}</label>
+        {{ form.code }}
+        {% if form.code.errors %}
+          <p class="text-sm text-red-600">{{ form.code.errors|striptags }}</p>
+        {% endif %}
+      </div>
+      <button class="btn-primary w-full text-center">Подтвердить</button>
+    </form>
+    <form method="post" action="{% url 'resend_email_code' %}" class="mt-3">
+      {% csrf_token %}
+      <input type="hidden" name="email" value="{{ form.email.value|default:'' }}">
+      <button class="btn-secondary w-full text-center">Отправить код еще раз</button>
+    </form>
+    <p class="text-sm text-gray-600 mt-4 text-center">
+      Уже подтвердили?
+      <a href="{% url 'login' %}" class="link">Войти</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

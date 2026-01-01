@@ -3,7 +3,14 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
-from accounts.views import LoginGateView, LogoutAllowGetView, ProfileView, SignupView
+from accounts.views import (
+    LoginGateView,
+    LogoutAllowGetView,
+    ProfileView,
+    SignupView,
+    resend_email_code,
+    verify_email,
+)
 from .views import dashboard
 
 urlpatterns = [
@@ -26,6 +33,8 @@ urlpatterns = [
     ),
     path("accounts/logout/", LogoutAllowGetView.as_view(), name="logout"),
     path("accounts/signup/", SignupView.as_view(), name="signup"),
+    path("accounts/verify/", verify_email, name="verify_email"),
+    path("accounts/verify/resend/", resend_email_code, name="resend_email_code"),
     path("accounts/profile/", ProfileView.as_view(), name="profile"),
     path("accounts/", include("django.contrib.auth.urls")),
     path("dashboard/", dashboard, name="dashboard"),

@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth import get_user_model
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.core.exceptions import ValidationError
 
 User = get_user_model()
@@ -40,14 +40,44 @@ class SignupForm(UserCreationForm):
         }
         allowed_roles = [choice for choice in User.Role.choices if choice[0] in allowed_role_values]
         self.fields["role"].choices = allowed_roles
+        self.fields["email"].required = True
 
     def clean_username(self):
         username = (self.cleaned_data.get("username") or "").strip()
         if not username:
             return username
         if User.objects.filter(username__iexact=username).exists():
-            raise ValidationError("User with this username already exists.")
+            raise ValidationError("Пользователь с таким именем уже существует.")
         return username
+
+    def clean_email(self):
+        email = (self.cleaned_data.get("email") or "").strip()
+        if not email:
+            raise ValidationError("Введите email.")
+        if User.objects.filter(email__iexact=email).exists():
+            raise ValidationError("Пользователь с таким email уже существует.")
+        return email
+
+
+class LoginForm(AuthenticationForm):
+    def confirm_login_allowed(self, user):
+        if not user.is_active:
+            raise ValidationError("Аккаунт не подтвержден. Проверьте email и введите код.")
+
+
+class EmailVerificationForm(forms.Form):
+    email = forms.EmailField(label="Email")
+    code = forms.CharField(label="Код подтверждения", max_length=6)
+
+    def clean_code(self):
+        code = (self.cleaned_data.get("code") or "").replace(" ", "").strip()
+        if not code.isdigit() or len(code) != 6:
+            raise ValidationError("Введите 6-значный код.")
+        return code
+
+
+class ResendEmailForm(forms.Form):
+    email = forms.EmailField(label="Email")
 
 
 class ProfileForm(forms.ModelForm):

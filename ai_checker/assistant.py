@@ -46,13 +46,22 @@ def _env_str(name: str, default: str) -> str:
 
 
 def _assistant_mode() -> str:
-    return _env_str("LLM_ASSISTANT_MODE", "llm").lower()
+    return _env_str("LLM_ASSISTANT_MODE", "auto").lower()
 
 
 def _is_fast_mode(mode: str | None = None) -> bool:
     if mode is None:
         mode = _assistant_mode()
     return mode in {"fast", "rules", "off", "0"}
+
+
+def _should_fallback(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return (
+        "llama-cpp-python" in message
+        or "llama_cpp" in message
+        or "llm model not found" in message
+    )
 
 _GUIDELINES_LIMIT = _env_int("LLM_GUIDELINES_LIMIT", 2000)
 _PDF_GUIDELINES_LIMIT = _env_int("LLM_GUIDELINES_PDF_LIMIT", 1600)
@@ -319,7 +328,7 @@ def answer_syllabus_question(message: str, syllabus=None) -> tuple[str, str]:
         )
         model_name = get_model_name()
     except Exception as exc:
-        if mode == "auto":
+        if mode == "auto" or _should_fallback(exc):
             return _rules_only_answer(message), "rules-only"
         return f"AI недоступен: {exc}", "rules-only"
 
