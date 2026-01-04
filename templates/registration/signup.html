@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}???????????{% endblock %}
+{% block title %}Регистрация{% endblock %}
 {% block content %}
 <div class="min-h-[70vh] flex items-center justify-center">
   <div class="card w-full max-w-xl p-8">
-    <h1 class="text-2xl font-semibold mb-4">???????????</h1>
+    <h1 class="text-2xl font-semibold mb-4">Регистрация</h1>
     <form method="post" class="space-y-4">
       {% csrf_token %}
       {% if form.non_field_errors %}
@@ -77,14 +77,14 @@
           <p class="text-sm text-red-600">{{ form.password2.errors|striptags }}</p>
         {% endif %}
       </div>
-      <button class="btn-primary w-full text-center">??????? ???????</button>
+      <button class="btn-primary w-full text-center">Создать аккаунт</button>
     </form>
     <p class="text-sm text-slate-600 mt-3">
-      ?? ????? ?????? ??? ?????????????. ??????? ???, ????? ???????????? ???????.
+      После регистрации мы отправим код подтверждения на email.
     </p>
     <p class="text-sm text-gray-600 mt-4 text-center">
-      ??? ???? ????????
-      <a href="{% url 'login' %}" class="link">?????</a>
+      Уже есть аккаунт?
+      <a href="{% url 'login' %}" class="link">Войти</a>
     </p>
   </div>
 </div>

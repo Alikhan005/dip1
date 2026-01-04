@@ -1,24 +1,24 @@
 {% extends "base.html" %}
-{% block title %}????{% endblock %}
+{% block title %}Вход{% endblock %}
 {% block content %}
 <div class="min-h-[70vh] flex items-center justify-center">
   <div class="card w-full max-w-md p-8">
-    <h1 class="text-2xl font-semibold mb-4">???? ? ??????? AlmaU Syllabus</h1>
+    <h1 class="text-2xl font-semibold mb-4">Вход в систему AlmaU Syllabus</h1>
     <form method="post" class="space-y-4">
       {% csrf_token %}
       {% if next %}
         <input type="hidden" name="next" value="{{ next }}">
       {% endif %}
       {{ form.as_p }}
-      <button class="btn-primary w-full text-center">?????</button>
+      <button class="btn-primary w-full text-center">Войти</button>
     </form>
     <p class="text-sm text-gray-600 mt-4 text-center">
-      ??? ?????????
-      <a href="{% url 'signup' %}" class="link">??????????????????</a>
+      Нет аккаунта?
+      <a href="{% url 'signup' %}" class="link">Зарегистрироваться</a>
     </p>
     <p class="text-sm text-gray-600 mt-2 text-center">
-      ?? ?????? ????
-      <a href="{% url 'verify_email' %}" class="link">??????????? ?????</a>
+      Забыли пароль?
+      <a href="{% url 'password_reset' %}" class="link">Восстановить</a>
     </p>
   </div>
 </div>

@@ -28,11 +28,13 @@ class CourseForm(forms.ModelForm):
         if self.instance and self.instance.pk:
             self.fields["languages"].initial = self.instance.get_available_languages_list()
 
-    def clean(self):
-        data = super().clean()
+    def save(self, commit=True):
+        instance = super().save(commit=False)
         langs = self.cleaned_data.get("languages", [])
-        self.instance.available_languages = ",".join(langs)
-        return data
+        instance.available_languages = ",".join(langs)
+        if commit:
+            instance.save()
+        return instance
 
 
 class TopicForm(forms.ModelForm):

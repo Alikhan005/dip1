@@ -26,7 +26,6 @@ def course_create(request):
         if form.is_valid():
             course = form.save(commit=False)
             course.owner = request.user
-            form.clean()
             course.save()
             return redirect("course_detail", pk=course.pk)
     else:
@@ -45,7 +44,6 @@ def course_edit(request, pk):
         form = CourseForm(request.POST, instance=course)
         if form.is_valid():
             course = form.save(commit=False)
-            form.clean()
             course.save()
             return redirect("course_detail", pk=course.pk)
     else:

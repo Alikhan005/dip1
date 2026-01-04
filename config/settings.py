@@ -4,6 +4,31 @@ from urllib.parse import unquote, urlparse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Загружаем .env автоматически, чтобы email/БД и другие настройки брались из файла окружения
+try:
+    from dotenv import load_dotenv  # type: ignore
+except Exception:  # pragma: no cover - опциональная зависимость
+    load_dotenv = None
+
+if load_dotenv:
+    env_path = BASE_DIR / ".env"
+    if env_path.exists():
+        load_dotenv(env_path)
+
+
+def _ensure_sqlite_dir(path_str: str) -> str:
+    """
+    Создает родительские каталоги для SQLite, если путь не :memory:.
+    Возвращает строковый путь без изменений.
+    """
+    if path_str and path_str != ":memory:":
+        try:
+            Path(path_str).parent.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            # Не блокируем запуск: пусть дальнейшая ошибка даст понятное сообщение
+            pass
+    return path_str
+
 def _env_bool(name: str, default: bool = False) -> bool:
     value = os.getenv(name)
     if value is None:
@@ -37,7 +62,10 @@ def _database_from_url(url: str) -> dict:
             path = path[1:]
         if not path:
             path = ":memory:"
-        return {"ENGINE": "django.db.backends.sqlite3", "NAME": path}
+        return {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": _ensure_sqlite_dir(path),
+        }
     if scheme in {"postgres", "postgresql"}:
         return {
             "ENGINE": "django.db.backends.postgresql",
@@ -129,7 +157,7 @@ if DATABASE_URL:
 else:
     DB_ENGINE = os.getenv("DB_ENGINE", "django.db.backends.sqlite3")
     if DB_ENGINE.endswith("sqlite3"):
-        DB_NAME = os.getenv("DB_NAME", str(BASE_DIR / "db.sqlite3"))
+        DB_NAME = _ensure_sqlite_dir(os.getenv("DB_NAME", str(BASE_DIR / "db.sqlite3")))
         DATABASES = {
             "default": {
                 "ENGINE": DB_ENGINE,

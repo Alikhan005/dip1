@@ -1,6 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
@@ -200,7 +201,6 @@ def syllabus_edit_topics(request, pk):
     course_topics = syllabus.course.topics.filter(is_active=True).order_by("order_index")
 
     if request.method == "POST":
-        SyllabusTopic.objects.filter(syllabus=syllabus).delete()
         entries = []
 
         for topic in course_topics:
@@ -245,6 +245,10 @@ def syllabus_edit_topics(request, pk):
                 }
             )
 
+        if not entries:
+            messages.error(request, "Выберите хотя бы одну тему для силлабуса.")
+            return redirect("syllabus_edit_topics", pk=syllabus.pk)
+
         used_weeks = {entry["week_number"] for entry in entries if entry["week_number"]}
         next_week = 1
         for entry in entries:
@@ -254,25 +258,27 @@ def syllabus_edit_topics(request, pk):
                 entry["week_number"] = next_week
                 used_weeks.add(next_week)
 
-        for entry in entries:
-            if not entry["week_label"] and entry["week_number"]:
-                entry["week_label"] = str(entry["week_number"])
-            SyllabusTopic.objects.create(
-                syllabus=syllabus,
-                topic=entry["topic"],
-                week_number=entry["week_number"],
-                custom_title=entry["custom_title"],
-                custom_hours=entry["custom_hours"],
-                week_label=entry["week_label"],
-                tasks=entry["tasks"],
-                learning_outcomes=entry["learning_outcomes"],
-                literature_notes=entry["literature_notes"],
-                assessment=entry["assessment"],
-                is_included=True,
-            )
+        with transaction.atomic():
+            SyllabusTopic.objects.filter(syllabus=syllabus).delete()
+            for entry in entries:
+                if not entry["week_label"] and entry["week_number"]:
+                    entry["week_label"] = str(entry["week_number"])
+                SyllabusTopic.objects.create(
+                    syllabus=syllabus,
+                    topic=entry["topic"],
+                    week_number=entry["week_number"],
+                    custom_title=entry["custom_title"],
+                    custom_hours=entry["custom_hours"],
+                    week_label=entry["week_label"],
+                    tasks=entry["tasks"],
+                    learning_outcomes=entry["learning_outcomes"],
+                    literature_notes=entry["literature_notes"],
+                    assessment=entry["assessment"],
+                    is_included=True,
+                )
 
-        syllabus.version_number += 1
-        syllabus.save()
+            syllabus.version_number += 1
+            syllabus.save()
 
         return redirect("syllabus_detail", pk=syllabus.pk)
 

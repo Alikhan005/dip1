@@ -14,7 +14,8 @@
   <link rel="stylesheet" href="{% static 'css/style.css' %}?v=6">
 </head>
 <body class="bg-slate-100 text-slate-800">
-  {% if not hide_nav %}
+  {% with request.resolver_match.url_name as url_name %}
+  {% if user.is_authenticated and url_name not in ['login','signup','verify_email','password_reset','password_reset_done','password_reset_confirm','password_reset_complete'] %}
   <nav class="site-nav" data-site-nav>
     <div class="site-nav__inner">
       <div class="flex items-center space-x-3 site-nav__brand">
@@ -59,6 +60,7 @@
     </div>
   </nav>
   {% endif %}
+  {% endwith %}
 
   <main class="page-container">
     {% if messages %}

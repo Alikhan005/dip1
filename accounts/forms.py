@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.core.exceptions import ValidationError
+from django.contrib.auth import authenticate
 
 User = get_user_model()
 
@@ -28,7 +29,7 @@ class SignupForm(UserCreationForm):
             "department": "Кафедра",
         }
         help_texts = {
-            "role": "Выберите роль для демонстрации работы системы.",
+            "role": "Выберите свою роль. При необходимости администратор сможет изменить её позже.",
         }
 
     def __init__(self, *args, **kwargs):
@@ -47,7 +48,7 @@ class SignupForm(UserCreationForm):
         if not username:
             return username
         if User.objects.filter(username__iexact=username).exists():
-            raise ValidationError("Пользователь с таким именем уже существует.")
+            raise ValidationError("Пользователь с таким логином уже есть. Укажите другой.")
         return username
 
     def clean_email(self):
@@ -55,14 +56,35 @@ class SignupForm(UserCreationForm):
         if not email:
             raise ValidationError("Введите email.")
         if User.objects.filter(email__iexact=email).exists():
-            raise ValidationError("Пользователь с таким email уже существует.")
+            raise ValidationError("Пользователь с таким email уже есть. Укажите другой.")
         return email
 
 
 class LoginForm(AuthenticationForm):
-    def confirm_login_allowed(self, user):
+    def clean(self):
+        username_or_email = (self.cleaned_data.get("username") or "").strip()
+        password = self.cleaned_data.get("password")
+
+        # Поддержка входа по email
+        lookup_username = username_or_email
+        if username_or_email and "@" in username_or_email:
+            user = User.objects.filter(email__iexact=username_or_email).first()
+            if user:
+                lookup_username = user.username
+
+        self.cleaned_data["username"] = lookup_username
+        user = authenticate(self.request, username=lookup_username, password=password)
+        if user is None:
+            raise ValidationError(
+                self.error_messages["invalid_login"],
+                code="invalid_login",
+                params={"username": self.username_field.verbose_name},
+            )
         if not user.is_active:
-            raise ValidationError("Аккаунт не подтвержден. Проверьте email и введите код.")
+            raise ValidationError("Аккаунт не активирован. Подтвердите email или обратитесь к администратору.")
+        self.confirm_login_allowed(user)
+        self._user = user
+        return self.cleaned_data
 
 
 class EmailVerificationForm(forms.Form):
@@ -72,7 +94,7 @@ class EmailVerificationForm(forms.Form):
     def clean_code(self):
         code = (self.cleaned_data.get("code") or "").replace(" ", "").strip()
         if not code.isdigit() or len(code) != 6:
-            raise ValidationError("Введите 6-значный код.")
+            raise ValidationError("Введите 6 цифр.")
         return code
 
 
