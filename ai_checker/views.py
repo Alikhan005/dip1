@@ -13,6 +13,7 @@ from .services import run_ai_check
 def _can_view(user, syllabus: Syllabus) -> bool:
     return can_view_syllabus(user, syllabus)
 
+
 @login_required
 def run_check(request, syllabus_pk):
     syllabus = get_object_or_404(Syllabus, pk=syllabus_pk)
@@ -22,6 +23,7 @@ def run_check(request, syllabus_pk):
         check = run_ai_check(syllabus)
         return redirect("ai_check_detail", pk=check.pk)
     return redirect("syllabus_detail", pk=syllabus.pk)
+
 
 @login_required
 def check_detail(request, pk):

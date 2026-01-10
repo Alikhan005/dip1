@@ -104,7 +104,8 @@ class LoginForm(AuthenticationForm):
             )
 
         self.confirm_login_allowed(user)
-        self._user = user
+        # AuthenticationForm expects user_cache for LoginView to log in.
+        self.user_cache = user
         return self.cleaned_data
 
     def confirm_login_allowed(self, user):

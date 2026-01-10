@@ -14,8 +14,7 @@
   <link rel="stylesheet" href="{% static 'css/style.css' %}?v=6">
 </head>
 <body class="bg-slate-100 text-slate-800">
-  {% with request.resolver_match.url_name as url_name %}
-  {% if user.is_authenticated and url_name not in ['login','signup','verify_email','password_reset','password_reset_done','password_reset_confirm','password_reset_complete'] %}
+  {% if user.is_authenticated and not hide_nav %}
   <nav class="site-nav" data-site-nav>
     <div class="site-nav__inner">
       <div class="flex items-center space-x-3 site-nav__brand">
@@ -60,7 +59,6 @@
     </div>
   </nav>
   {% endif %}
-  {% endwith %}
 
   <main class="page-container">
     {% if messages %}
@@ -100,7 +98,7 @@
         <div id="ai-widget-history" class="ai-widget__history">
           <div class="ai-widget__bubble ai-widget__bubble--ai">
             <div class="ai-widget__label">AI помощник</div>
-            <div class="ai-widget__msg">Здравствуйте! Помогу с темами, неделями, часами и литературой.</div>
+          <div class="ai-widget__msg">Здравствуйте! Помогу с силлабусом: темы, разделы, PDF, общий доступ и AI-проверка.</div>
           </div>
         </div>
         <form
@@ -124,7 +122,7 @@
             <span id="ai-widget-status" class="ai-widget__status" aria-live="polite">Думаю...</span>
           </div>
         </form>
-        <div class="ai-widget__hint">Можно спрашивать про темы, недели, часы, литературу и структуру.</div>
+        <div class="ai-widget__hint">Можно спрашивать про общий доступ, PDF, создание/копирование, темы, часы и AI-проверку.</div>
       </section>
     </div>
   {% endif %}

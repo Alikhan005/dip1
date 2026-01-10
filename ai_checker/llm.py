@@ -2,6 +2,8 @@ import os
 import threading
 from pathlib import Path
 
+import httpx
+
 try:
     from dotenv import load_dotenv
 except Exception:  # pragma: no cover - optional dependency
@@ -36,11 +38,103 @@ def _ensure_env_loaded() -> None:
         load_dotenv(env_path)
 
 
+def _remote_config() -> dict | None:
+    _ensure_env_loaded()
+    api_key = os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+    api_url = os.getenv("LLM_API_URL", "https://api.openai.com/v1/chat/completions")
+    model = os.getenv("LLM_REMOTE_MODEL", "").strip() or "gpt-4o-mini"
+    timeout = float(os.getenv("LLM_REMOTE_TIMEOUT", "30"))
+    org = os.getenv("OPENAI_ORG", "").strip()
+    return {
+        "api_key": api_key,
+        "api_url": api_url,
+        "model": model,
+        "timeout": timeout,
+        "org": org,
+    }
+
+
+def _use_remote() -> bool:
+    provider = os.getenv("LLM_PROVIDER", "auto").strip().lower()
+    if provider in {"local", "llama", "llama-cpp"}:
+        return False
+    if provider in {"remote", "api", "openai", "openrouter", "groq", "mistral"}:
+        return True
+    return _remote_config() is not None
+
+
+def _split_prompt(prompt: str) -> tuple[str, str]:
+    if "<|im_start|>system" not in prompt:
+        return "", prompt
+    system = ""
+    users = []
+    parts = prompt.split("<|im_start|>")
+    for part in parts:
+        if part.startswith("system\n"):
+            system = part[len("system\n") :].split("<|im_end|>", 1)[0].strip()
+        elif part.startswith("user\n"):
+            user = part[len("user\n") :].split("<|im_end|>", 1)[0].strip()
+            if user:
+                users.append(user)
+    if users:
+        return system, "\n\n".join(users)
+    return "", prompt
+
+
+def _generate_remote_text(
+    prompt: str,
+    max_tokens: int,
+    temperature: float,
+    top_p: float,
+) -> str:
+    config = _remote_config()
+    if not config:
+        raise RuntimeError("Remote LLM is not configured. Set LLM_API_KEY.")
+
+    system, user = _split_prompt(prompt)
+    messages = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": user})
+
+    headers = {"Authorization": f"Bearer {config['api_key']}"}
+    if config["org"]:
+        headers["OpenAI-Organization"] = config["org"]
+
+    payload = {
+        "model": config["model"],
+        "messages": messages,
+        "temperature": temperature,
+        "top_p": top_p,
+        "max_tokens": max_tokens,
+    }
+
+    with httpx.Client(timeout=config["timeout"]) as client:
+        response = client.post(config["api_url"], headers=headers, json=payload)
+        response.raise_for_status()
+        data = response.json()
+
+    choices = data.get("choices") or []
+    if not choices:
+        raise RuntimeError("Remote LLM returned no choices.")
+    choice = choices[0]
+    if isinstance(choice, dict):
+        message = choice.get("message")
+        if isinstance(message, dict) and message.get("content"):
+            return str(message["content"]).strip()
+        if choice.get("text"):
+            return str(choice["text"]).strip()
+    raise RuntimeError("Remote LLM returned an unexpected response.")
+
+
 def _resolve_model_path() -> str:
     _ensure_env_loaded()
     env_path = os.getenv("LLM_MODEL_PATH")
     if env_path:
-        return env_path
+        if Path(env_path).exists():
+            return env_path
 
     default_path = Path(_DEFAULT_MODEL_PATH)
     if default_path.exists():
@@ -63,6 +157,9 @@ def _resolve_model_path() -> str:
 
 
 def get_model_name() -> str:
+    if _use_remote():
+        config = _remote_config()
+        return config["model"] if config else "remote"
     model_path = _resolve_model_path()
     return Path(model_path).name if model_path else "unknown"
 
@@ -112,6 +209,9 @@ def generate_text(
     temperature: float = 0.3,
     top_p: float = 0.9,
 ) -> str:
+    if _use_remote():
+        return _generate_remote_text(prompt, max_tokens, temperature, top_p)
+
     llm = get_llm()
     with _RUN_LOCK:
         output = llm(

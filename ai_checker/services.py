@@ -116,11 +116,12 @@ def analyze_structure(syllabus: Syllabus) -> dict:
     if syllabus.total_weeks and unique_weeks:
         if max(unique_weeks) < syllabus.total_weeks:
             issues.append(
-                f"Покрыты не все недели: последняя {max(unique_weeks)}, по плану {syllabus.total_weeks}."
+                f"Покрыты не все недели: заполнено {max(unique_weeks)}, по плану {syllabus.total_weeks}."
             )
         if max(unique_weeks) > syllabus.total_weeks:
             issues.append(
-                f"Есть темы после планового срока: последняя {max(unique_weeks)}, по плану {syllabus.total_weeks}."
+                f"Есть темы вне планового количества недель: заполнено {max(unique_weeks)}, "
+                f"по плану {syllabus.total_weeks}."
             )
 
     if no_lit:
@@ -130,7 +131,7 @@ def analyze_structure(syllabus: Syllabus) -> dict:
         issues.append(f"У {no_questions} тем нет контрольных вопросов.")
 
     if duplicate_weeks:
-        issues.append("Есть дублирующиеся номера недель.")
+        issues.append("Есть дублирование номеров недель.")
 
     return {
         "total_topics": total_topics,
@@ -215,7 +216,7 @@ def _format_llm_issues(issues: list) -> str:
             line += f"{where}: "
         line += message
         if fix:
-            line += f" Fix: {fix}"
+            line += f" Исправление: {fix}"
         lines.append(line.strip())
 
     return "\n".join(lines)
@@ -233,20 +234,20 @@ def _build_summary_text(llm_result: dict, struct: dict, syllabus: Syllabus) -> s
         if isinstance(issues, list) and issues:
             formatted = _format_llm_issues(issues)
             if formatted:
-                parts.append("Issues:\n" + formatted)
+                parts.append("Проблемы:\n" + formatted)
 
     if not parts:
         total_topics = syllabus.syllabus_topics.count()
         total_weeks = syllabus.total_weeks or 0
         parts.append(
-            f"Syllabus for {syllabus.course.display_title} covers {total_topics} "
-            f"topics over {total_weeks} weeks."
+            f"Силлабус по курсу {syllabus.course.display_title} содержит {total_topics} "
+            f"тем(ы) на {total_weeks} недель."
         )
 
     if struct.get("issues"):
-        parts.append("Structural issues:\n" + "\n".join(f"- {i}" for i in struct["issues"]))
+        parts.append("Структурные проблемы:\n" + "\n".join(f"- {i}" for i in struct["issues"]))
     else:
-        parts.append("Structure check: no issues found.")
+        parts.append("Структурная проверка: проблем не найдено.")
 
     return "\n\n".join(parts)
 
