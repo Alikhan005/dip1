@@ -115,6 +115,7 @@
       {% else %}
         <p class="text-gray-600 text-sm">Файл пока не загружен.</p>
       {% endif %}
+      <p class="text-xs text-slate-500 mt-1">PDF хранится как вложение; редактирование выполняется в темах и разделах.</p>
       {% if syllabus.is_shared %}
         <p class="text-xs text-slate-500">Этот файл виден другим преподавателям по похожим дисциплинам.</p>
       {% endif %}
@@ -128,26 +129,6 @@
     {% endif %}
   </div>
 
-  {% if can_edit_topics %}
-    <div class="card p-4">
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div class="font-semibold">AI-заполнение силлабуса</div>
-          <p class="text-sm text-slate-600">
-            Сгенерировать описание, результаты, методы и план по темам на основе шаблона.
-          </p>
-        </div>
-        <form method="post" action="{% url 'syllabus_ai_draft' syllabus.pk %}" class="flex items-center gap-3">
-          {% csrf_token %}
-          <label class="text-sm text-slate-600 flex items-center gap-2">
-            <input type="checkbox" name="overwrite">
-            Перезаписать заполненные поля
-          </label>
-          <button class="btn-primary">AI заполнить</button>
-        </form>
-      </div>
-    </div>
-  {% endif %}
 </div>
 
 <div class="flex items-center gap-3 mb-4">
@@ -189,6 +170,32 @@
               {{ log.changed_at|date:"d.m.Y H:i" }}
               {% if log.changed_by %}
                 - {{ log.changed_by.get_full_name|default:log.changed_by.username }}
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+
+{% if syllabus.revisions.exists %}
+  <div class="mb-6">
+    <h3 class="text-lg font-semibold mb-2">История изменений</h3>
+    <div class="card divide-y">
+      {% for revision in syllabus.revisions.all %}
+        <div class="px-4 py-2 text-sm">
+          <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <span class="font-medium">v{{ revision.version_number }}</span>
+              {% if revision.note %}
+                <span class="text-gray-500 ml-2">{{ revision.note }}</span>
+              {% endif %}
+            </div>
+            <div class="text-gray-500">
+              {{ revision.created_at|date:"d.m.Y H:i" }}
+              {% if revision.changed_by %}
+                - {{ revision.changed_by.get_full_name|default:revision.changed_by.username }}
               {% endif %}
             </div>
           </div>

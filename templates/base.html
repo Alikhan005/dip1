@@ -5,7 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}AlmaU Syllabus{% endblock %}</title>
-  <link rel="icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">
+  <link rel="icon" type="image/x-icon" href="{% static 'img/favicon1.ico' %}?v=3">
+  <link rel="shortcut icon" type="image/x-icon" href="{% static 'img/favicon1.ico' %}?v=3">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600;700&display=swap" rel="stylesheet">
@@ -45,7 +46,9 @@
               <a href="{% url 'shared_courses_list' %}" class="nav-link">Общие курсы</a>
             {% endif %}
             <a href="{% url 'syllabi_list' %}" class="nav-link">Силлабусы</a>
-            <a href="{% url 'shared_syllabi_list' %}" class="nav-link">Общие силлабусы</a>
+            {% if user.role == "teacher" %}
+              <a href="{% url 'shared_syllabi_list' %}" class="nav-link">Общие силлабусы</a>
+            {% endif %}
           </div>
         {% endif %}
       </div>
@@ -91,14 +94,14 @@
         <div class="ai-widget__header">
           <div>
             <div class="ai-widget__title">AI помощник</div>
-            <div class="ai-widget__subtitle">Подскажу по структуре и заполнению силлабуса.</div>
+            <div class="ai-widget__subtitle">Подскажу по структуре и проверке силлабуса.</div>
           </div>
           <button type="button" class="ai-widget__close" data-ai-close aria-label="Закрыть">&times;</button>
         </div>
         <div id="ai-widget-history" class="ai-widget__history">
           <div class="ai-widget__bubble ai-widget__bubble--ai">
             <div class="ai-widget__label">AI помощник</div>
-          <div class="ai-widget__msg">Здравствуйте! Помогу с силлабусом: темы, разделы, PDF, общий доступ и AI-проверка.</div>
+          <div class="ai-widget__msg">Здравствуйте! Помогу с силлабусом: темы, разделы, PDF, общий доступ и проверка структуры.</div>
           </div>
         </div>
         <form
@@ -122,7 +125,7 @@
             <span id="ai-widget-status" class="ai-widget__status" aria-live="polite">Думаю...</span>
           </div>
         </form>
-        <div class="ai-widget__hint">Можно спрашивать про общий доступ, PDF, создание/копирование, темы, часы и AI-проверку.</div>
+        <div class="ai-widget__hint">Можно спрашивать про общий доступ, PDF, создание/копирование, темы, часы и проверку структуры.</div>
       </section>
     </div>
   {% endif %}

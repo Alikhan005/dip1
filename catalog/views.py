@@ -9,17 +9,14 @@ from .models import Course, Topic, TopicLiterature, TopicQuestion
 
 
 @login_required
-@role_required("teacher", "dean", "admin")
+@role_required("teacher")
 def courses_list(request):
-    if request.user.role == "admin":
-        courses = Course.objects.all()
-    else:
-        courses = Course.objects.filter(owner=request.user)
+    courses = Course.objects.filter(owner=request.user)
     return render(request, "catalog/courses_list.html", {"courses": courses})
 
 
 @login_required
-@role_required("teacher", "dean", "admin")
+@role_required("teacher")
 def course_create(request):
     if request.method == "POST":
         form = CourseForm(request.POST)
@@ -34,12 +31,9 @@ def course_create(request):
 
 
 @login_required
-@role_required("teacher", "dean", "admin")
+@role_required("teacher")
 def course_edit(request, pk):
-    if request.user.role == "admin":
-        course = get_object_or_404(Course, pk=pk)
-    else:
-        course = get_object_or_404(Course, pk=pk, owner=request.user)
+    course = get_object_or_404(Course, pk=pk, owner=request.user)
     if request.method == "POST":
         form = CourseForm(request.POST, instance=course)
         if form.is_valid():
@@ -58,10 +52,8 @@ def course_detail(request, pk):
         pk=pk,
     )
     if course.owner != request.user and not course.is_shared and request.user.role not in [
-        "admin",
         "dean",
         "umu",
-        "program_leader",
     ]:
         raise PermissionDenied("Нет доступа к этому курсу.")
     topics = course.topics.order_by("order_index")
@@ -69,12 +61,9 @@ def course_detail(request, pk):
 
 
 @login_required
-@role_required("teacher", "dean", "admin")
+@role_required("teacher")
 def topic_create(request, course_pk):
-    if request.user.role == "admin":
-        course = get_object_or_404(Course, pk=course_pk)
-    else:
-        course = get_object_or_404(Course, pk=course_pk, owner=request.user)
+    course = get_object_or_404(Course, pk=course_pk, owner=request.user)
     if request.method == "POST":
         form = TopicForm(request.POST)
         literature_formset = TopicLiteratureFormSet(request.POST, prefix="lit")
@@ -108,12 +97,9 @@ def topic_create(request, course_pk):
 
 
 @login_required
-@role_required("teacher", "dean", "admin")
+@role_required("teacher")
 def topic_edit(request, course_pk, pk):
-    if request.user.role == "admin":
-        course = get_object_or_404(Course, pk=course_pk)
-    else:
-        course = get_object_or_404(Course, pk=course_pk, owner=request.user)
+    course = get_object_or_404(Course, pk=course_pk, owner=request.user)
     topic = get_object_or_404(Topic, pk=pk, course=course)
     if request.method == "POST":
         form = TopicForm(request.POST, instance=topic)
@@ -142,14 +128,14 @@ def topic_edit(request, course_pk, pk):
 
 
 @login_required
-@role_required("teacher", "program_leader", "dean", "admin")
+@role_required("teacher")
 def shared_courses_list(request):
     courses = Course.objects.filter(is_shared=True).select_related("owner")
     return render(request, "catalog/shared_courses_list.html", {"courses": courses})
 
 
 @login_required
-@role_required("teacher", "dean", "admin")
+@role_required("teacher")
 @transaction.atomic
 def course_fork(request, pk):
     source = get_object_or_404(Course, pk=pk, is_shared=True)

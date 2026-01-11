@@ -87,3 +87,26 @@ class SyllabusTopic(models.Model):
         if self.custom_title:
             return self.custom_title
         return self.topic.get_title(self.syllabus.main_language)
+
+
+class SyllabusRevision(models.Model):
+    syllabus = models.ForeignKey(
+        Syllabus,
+        on_delete=models.CASCADE,
+        related_name="revisions",
+    )
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    note = models.CharField(max_length=255, blank=True)
+    version_number = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.syllabus_id} v{self.version_number}"

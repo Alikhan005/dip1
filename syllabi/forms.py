@@ -29,10 +29,14 @@ class SyllabusForm(forms.ModelForm):
             "pdf_file",
         ]
         labels = {
+            "course": "Дисциплина",
             "pdf_file": "Старый PDF (необязательно)",
         }
         help_texts = {
-            "pdf_file": "Можно загрузить прошлую версию, чтобы заменить ее позже.",
+            "pdf_file": (
+                "Старый PDF хранится для справки. Редактирование идет в конструкторе тем и "
+                "разделов; финальный PDF можно заменить после согласования."
+            ),
         }
 
     def __init__(self, *args, **kwargs):
@@ -47,7 +51,7 @@ class SyllabusForm(forms.ModelForm):
                 self.fields["copy_from"].queryset = (
                     Syllabus.objects.filter(creator=user).select_related("course", "creator")
                 )
-        self.fields["course"].empty_label = "Выберите курс"
+        self.fields["course"].empty_label = "Выберите дисциплину"
         self.fields["copy_from"].empty_label = "Не использовать"
         self.fields["main_language"].widget = forms.Select(choices=Syllabus.LANG_CHOICES)
 

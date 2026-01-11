@@ -1,3 +1,4 @@
+from collections import Counter
 from io import BytesIO
 
 from django.http import HttpResponse
@@ -35,6 +36,31 @@ def _build_literature_lists(topics):
             else:
                 additional_items.append(entry)
     return main_items, additional_items
+
+
+def validate_syllabus_structure(syllabus) -> list[str]:
+    errors = []
+    topics = list(syllabus.syllabus_topics.all())
+    if not topics:
+        return ["Добавьте хотя бы одну тему."]
+
+    week_numbers = [st.week_number for st in topics if st.week_number]
+    if len(week_numbers) != len(topics):
+        errors.append("Есть темы без номера недели.")
+
+    counts = Counter(week_numbers)
+    duplicates = sorted(week for week, count in counts.items() if count > 1)
+    if duplicates:
+        errors.append("Повторяются недели: " + ", ".join(str(week) for week in duplicates) + ".")
+
+    if syllabus.total_weeks and week_numbers:
+        max_week = max(week_numbers)
+        if max_week > syllabus.total_weeks:
+            errors.append(
+                f"Номер недели {max_week} выходит за предел {syllabus.total_weeks}."
+            )
+
+    return errors
 
 
 def generate_syllabus_pdf(syllabus):

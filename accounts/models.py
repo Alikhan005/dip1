@@ -47,24 +47,19 @@ class User(AbstractUser):
 
     @property
     def is_teacher_like(self) -> bool:
-        return self.role in {self.Role.TEACHER, self.Role.DEAN}
+        return self.role == self.Role.TEACHER
 
     @property
     def can_edit_content(self) -> bool:
-        return self.role in {self.Role.TEACHER, self.Role.DEAN, self.Role.ADMIN}
+        return self.role == self.Role.TEACHER
 
     @property
     def can_view_courses(self) -> bool:
-        return self.role in {self.Role.TEACHER, self.Role.DEAN, self.Role.ADMIN}
+        return self.role == self.Role.TEACHER
 
     @property
     def can_view_shared_courses(self) -> bool:
-        return self.role in {
-            self.Role.TEACHER,
-            self.Role.PROGRAM_LEADER,
-            self.Role.DEAN,
-            self.Role.ADMIN,
-        }
+        return self.role == self.Role.TEACHER
 
     def __str__(self):
         return self.get_full_name() or self.username

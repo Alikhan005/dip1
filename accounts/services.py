@@ -46,6 +46,14 @@ def can_resend(verification: EmailVerification) -> bool:
     return (timezone.now() - verification.last_sent_at) >= timedelta(seconds=cooldown)
 
 
+def resolve_from_email() -> str:
+    default_from = (getattr(settings, "DEFAULT_FROM_EMAIL", "") or "").strip()
+    if default_from:
+        return default_from
+    host_user = (getattr(settings, "EMAIL_HOST_USER", "") or "").strip()
+    return host_user or "AlmaU Syllabus <noreply@example.com>"
+
+
 def send_verification_email(user, code: str, ttl_minutes: int) -> None:
     if not user.email:
         raise ValueError("User email is missing.")
@@ -58,10 +66,11 @@ def send_verification_email(user, code: str, ttl_minutes: int) -> None:
     subject = "Подтверждение email AlmaU Syllabus"
     text_body = render_to_string("registration/verify_email_email.txt", context).strip()
     html_body = render_to_string("registration/verify_email_email.html", context)
+    from_email = resolve_from_email()
     email = EmailMultiAlternatives(
         subject=subject,
         body=text_body,
-        from_email=settings.DEFAULT_FROM_EMAIL,
+        from_email=from_email,
         to=[user.email],
     )
     email.attach_alternative(html_body, "text/html")

@@ -18,7 +18,7 @@
   {% csrf_token %}
 
   <div class="card p-5">
-    <h2 class="text-lg font-semibold mb-4">1. Основные данные</h2>
+    <h2 class="text-lg font-semibold mb-4 section-title">1. Основные данные</h2>
     <div class="grid gap-4 md:grid-cols-2">
       <div>
         <label for="{{ form.course.id_for_label }}">{{ form.course.label }}</label>
@@ -59,13 +59,16 @@
   </div>
 
   <div class="card p-5">
-    <h2 class="text-lg font-semibold mb-4">2. Стартовая структура</h2>
+    <h2 class="text-lg font-semibold mb-4 section-title">2. Стартовая структура</h2>
     <div class="grid gap-4 md:grid-cols-2">
       <div>
         <label for="{{ form.copy_from.id_for_label }}">{{ form.copy_from.label }}</label>
         {{ form.copy_from }}
         {% if form.copy_from.help_text %}
           <p class="text-sm text-slate-500 mt-1">{{ form.copy_from.help_text }}</p>
+        {% endif %}
+        {% if not has_copy_from %}
+          <p class="text-sm text-slate-500 mt-1">Нет прошлых силлабусов для копирования.</p>
         {% endif %}
         {% if form.copy_from.errors %}
           <p class="text-sm text-red-600">{{ form.copy_from.errors|striptags }}</p>
@@ -90,9 +93,10 @@
   </div>
 
   <div id="upload" class="card p-5">
-    <h2 class="text-lg font-semibold mb-2">3. Файл старого силлабуса (опционально)</h2>
+    <h2 class="text-lg font-semibold mb-2 section-title">3. Файл старого силлабуса (опционально)</h2>
     <p class="text-sm text-slate-600 mb-4">
-      Загрузите старый PDF, чтобы хранить его рядом и заменить финальную версию после согласования.
+      Загрузите старый PDF для справки — он не редактируется внутри системы. Для правок используйте
+      конструктор тем и разделов, а для повторного использования выберите прошлый силлабус выше.
     </p>
     <div>
       <label for="{{ form.pdf_file.id_for_label }}">{{ form.pdf_file.label }}</label>

@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth import get_user_model
-from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
+from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, UserCreationForm
 from django.core.exceptions import ValidationError
 from django.contrib.auth import authenticate
 
@@ -113,6 +113,19 @@ class LoginForm(AuthenticationForm):
             raise ValidationError(
                 "Аккаунт не активирован. Подтвердите email или обратитесь к администратору."
             )
+
+
+class PasswordResetIdentifierForm(PasswordResetForm):
+    email = forms.CharField(
+        label="Email или логин",
+        widget=forms.TextInput(
+            attrs={
+                "autocomplete": "username",
+                "placeholder": "Email или логин",
+            }
+        ),
+    )
+
 
 class EmailVerificationForm(forms.Form):
     email = forms.EmailField(label="Email")

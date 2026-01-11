@@ -3,13 +3,12 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_POST
 
 from accounts.decorators import role_required
+from catalog.services import ensure_default_courses
 from .forms import SyllabusForm, SyllabusDetailsForm
-from .models import Syllabus, SyllabusTopic
+from .models import Syllabus, SyllabusTopic, SyllabusRevision
 from .permissions import can_view_syllabus, shared_syllabi_queryset
-from .ai import generate_syllabus_draft
 from .services import generate_syllabus_pdf
 from workflow.services import change_status
 
@@ -53,7 +52,7 @@ def _build_literature_lists(topics):
 
 @login_required
 def syllabi_list(request):
-    if request.user.role in ["admin", "dean", "umu", "program_leader"]:
+    if request.user.role in ["dean", "umu"]:
         syllabi = Syllabus.objects.select_related("course", "creator")
     else:
         syllabi = Syllabus.objects.filter(creator=request.user).select_related("course", "creator")
@@ -61,15 +60,16 @@ def syllabi_list(request):
 
 
 @login_required
-@role_required("teacher", "program_leader", "admin", "dean", "umu")
+@role_required("teacher")
 def shared_syllabi_list(request):
     syllabi = shared_syllabi_queryset(request.user).order_by("-updated_at")
     return render(request, "syllabi/shared_syllabi_list.html", {"syllabi": syllabi})
 
 
 @login_required
-@role_required("teacher", "dean", "admin")
+@role_required("teacher")
 def syllabus_create(request):
+    ensure_default_courses(request.user)
     if request.method == "POST":
         form = SyllabusForm(request.POST, request.FILES, user=request.user)
         if form.is_valid():
@@ -91,6 +91,11 @@ def syllabus_create(request):
                             is_included=st.is_included,
                             custom_title=st.custom_title,
                             custom_hours=st.custom_hours,
+                            week_label=st.week_label,
+                            tasks=st.tasks,
+                            learning_outcomes=st.learning_outcomes,
+                            literature_notes=st.literature_notes,
+                            assessment=st.assessment,
                         )
                         for st in source_topics
                     ]
@@ -114,7 +119,14 @@ def syllabus_create(request):
             return redirect("syllabus_edit_topics", pk=syllabus.pk)
     else:
         form = SyllabusForm(user=request.user)
-    return render(request, "syllabi/syllabus_form.html", {"form": form})
+    has_copy_from = form.fields["copy_from"].queryset.exists()
+    if not has_copy_from:
+        form.fields["copy_from"].disabled = True
+    return render(
+        request,
+        "syllabi/syllabus_form.html",
+        {"form": form, "has_copy_from": has_copy_from},
+    )
 
 
 @login_required
@@ -125,12 +137,11 @@ def syllabus_detail(request, pk):
     is_frozen = syllabus.status == Syllabus.Status.APPROVED_UMU
     is_creator = request.user == syllabus.creator
     role = request.user.role
-    is_admin = role == "admin"
     is_dean = role == "dean"
     is_umu = role == "umu"
     is_teacher_like = request.user.is_teacher_like
 
-    can_edit_topics = not is_frozen and (is_creator or is_admin)
+    can_edit_topics = not is_frozen and is_creator
     topics = (
         syllabus.syllabus_topics.select_related("topic")
         .prefetch_related("topic__literature", "topic__questions")
@@ -140,26 +151,26 @@ def syllabus_detail(request, pk):
     can_submit_dean = (
         is_creator
         and syllabus.status in ["draft", "rejected"]
-        and (is_teacher_like or is_admin)
+        and is_teacher_like
     )
     can_approve_dean = (
         syllabus.status == "submitted_dean"
-        and (is_dean or is_admin)
-        and not (is_dean and is_creator)
+        and is_dean
+        and not is_creator
     )
     can_submit_umu = (
         syllabus.status == "approved_dean"
         and is_creator
-        and (is_teacher_like or is_admin)
+        and is_teacher_like
     )
     can_approve_umu = (
         syllabus.status == "submitted_umu"
-        and (is_umu or is_admin)
-        and not (is_umu and is_creator)
+        and is_umu
+        and not is_creator
     )
     can_reject_umu = can_approve_umu
-    can_upload = is_admin or (is_creator and not is_frozen) or (is_umu and is_frozen)
-    can_share = is_creator or is_admin
+    can_upload = (is_creator and not is_frozen) or (is_umu and is_frozen)
+    can_share = is_creator
 
     return render(
         request,
@@ -188,12 +199,9 @@ def syllabus_detail(request, pk):
 
 
 @login_required
-@role_required("teacher", "dean", "admin")
+@role_required("teacher")
 def syllabus_edit_topics(request, pk):
-    if request.user.role == "admin":
-        syllabus = get_object_or_404(Syllabus, pk=pk)
-    else:
-        syllabus = get_object_or_404(Syllabus, pk=pk, creator=request.user)
+    syllabus = get_object_or_404(Syllabus, pk=pk, creator=request.user)
     if syllabus.status == Syllabus.Status.APPROVED_UMU:
         messages.error(request, "Силлабус утвержден УМУ и заморожен.")
         return redirect("syllabus_detail", pk=syllabus.pk)
@@ -279,6 +287,12 @@ def syllabus_edit_topics(request, pk):
 
             syllabus.version_number += 1
             syllabus.save()
+            SyllabusRevision.objects.create(
+                syllabus=syllabus,
+                changed_by=request.user,
+                version_number=syllabus.version_number,
+                note="Обновлены темы и недели",
+            )
 
         return redirect("syllabus_detail", pk=syllabus.pk)
 
@@ -313,12 +327,9 @@ def syllabus_edit_topics(request, pk):
 
 
 @login_required
-@role_required("teacher", "dean", "admin")
+@role_required("teacher")
 def syllabus_edit_details(request, pk):
-    if request.user.role == "admin":
-        syllabus = get_object_or_404(Syllabus, pk=pk)
-    else:
-        syllabus = get_object_or_404(Syllabus, pk=pk, creator=request.user)
+    syllabus = get_object_or_404(Syllabus, pk=pk, creator=request.user)
 
     if syllabus.status == Syllabus.Status.APPROVED_UMU:
         messages.error(request, "Силлабус утвержден и недоступен для редактирования.")
@@ -330,6 +341,12 @@ def syllabus_edit_details(request, pk):
             syllabus = form.save(commit=False)
             syllabus.version_number += 1
             syllabus.save()
+            SyllabusRevision.objects.create(
+                syllabus=syllabus,
+                changed_by=request.user,
+                version_number=syllabus.version_number,
+                note="Обновлены основные данные",
+            )
             messages.success(request, "Данные силлабуса обновлены.")
             return redirect("syllabus_detail", pk=syllabus.pk)
     else:
@@ -348,130 +365,6 @@ def syllabus_edit_details(request, pk):
             "form": form,
         },
     )
-
-
-@login_required
-@role_required("teacher", "dean", "admin")
-@require_POST
-def syllabus_ai_draft(request, pk):
-    if request.user.role == "admin":
-        syllabus = get_object_or_404(Syllabus, pk=pk)
-    else:
-        syllabus = get_object_or_404(Syllabus, pk=pk, creator=request.user)
-
-    if syllabus.status == Syllabus.Status.APPROVED_UMU:
-        messages.error(request, "Силлабус утвержден и недоступен для редактирования.")
-        return redirect("syllabus_detail", pk=syllabus.pk)
-
-    overwrite = request.POST.get("overwrite") == "on"
-
-    try:
-        draft, model_name = generate_syllabus_draft(syllabus)
-    except Exception as exc:
-        messages.error(request, f"AI недоступен: {exc}")
-        return redirect("syllabus_detail", pk=syllabus.pk)
-
-    updated_fields = []
-    field_map = {
-        "course_description": draft.get("course_description"),
-        "course_goal": draft.get("course_goal"),
-        "learning_outcomes": draft.get("learning_outcomes"),
-        "teaching_methods": draft.get("teaching_methods"),
-        "teaching_philosophy": draft.get("teaching_philosophy"),
-        "course_policy": draft.get("course_policy"),
-        "academic_integrity_policy": draft.get("academic_integrity_policy"),
-        "inclusive_policy": draft.get("inclusive_policy"),
-        "assessment_policy": draft.get("assessment_policy"),
-        "grading_scale": draft.get("grading_scale"),
-        "appendix": draft.get("appendix"),
-        "main_literature": draft.get("main_literature"),
-        "additional_literature": draft.get("additional_literature"),
-    }
-
-    for field, value in field_map.items():
-        if value is None:
-            continue
-        if isinstance(value, list):
-            value = "\n".join(str(item).strip() for item in value if str(item).strip())
-        if not isinstance(value, str):
-            value = str(value)
-        value = value.strip()
-        if not value:
-            continue
-        if overwrite or not getattr(syllabus, field):
-            setattr(syllabus, field, value)
-            updated_fields.append(field)
-
-    topics_in_order = list(
-        syllabus.syllabus_topics.select_related("topic").order_by("week_number")
-    )
-    topics_by_id = {st.topic_id: st for st in topics_in_order}
-    updated_topic_ids = []
-    weekly_plan = draft.get("weekly_plan") or []
-    for idx, entry in enumerate(weekly_plan):
-        if not isinstance(entry, dict):
-            continue
-        topic_id = entry.get("topic_id")
-        st = topics_by_id.get(topic_id)
-        if not st and idx < len(topics_in_order):
-            st = topics_in_order[idx]
-        if not st:
-            continue
-        changed = False
-        week_label = (entry.get("week_label") or "").strip()
-        tasks = (entry.get("tasks") or "").strip()
-        outcomes = entry.get("outcomes")
-        literature = (entry.get("literature") or "").strip()
-        assessment = (entry.get("assessment") or "").strip()
-
-        if outcomes is not None and isinstance(outcomes, list):
-            outcomes = "\n".join(str(item).strip() for item in outcomes if str(item).strip())
-        elif outcomes is None:
-            outcomes = ""
-        else:
-            outcomes = str(outcomes).strip()
-
-        if week_label and (overwrite or not st.week_label):
-            st.week_label = week_label
-            changed = True
-        if tasks and (overwrite or not st.tasks):
-            st.tasks = tasks
-            changed = True
-        if outcomes and (overwrite or not st.learning_outcomes):
-            st.learning_outcomes = outcomes
-            changed = True
-        if literature and (overwrite or not st.literature_notes):
-            st.literature_notes = literature
-            changed = True
-        if assessment and (overwrite or not st.assessment):
-            st.assessment = assessment
-            changed = True
-
-        if changed:
-            st.save(
-                update_fields=[
-                    "week_label",
-                    "tasks",
-                    "learning_outcomes",
-                    "literature_notes",
-                    "assessment",
-                ]
-            )
-            updated_topic_ids.append(st.topic_id)
-
-    if updated_fields or updated_topic_ids:
-        syllabus.version_number += 1
-        updated_fields.append("version_number")
-        syllabus.save(update_fields=list(set(updated_fields)))
-        messages.success(
-            request,
-            f"AI-сценарий заполнен ({model_name}). Обновлено: "
-            f"разделы={len(updated_fields) - 1}, темы={len(updated_topic_ids)}.",
-        )
-    else:
-        messages.info(request, "AI не внес изменений — все поля уже заполнены.")
-
-    return redirect("syllabus_detail", pk=syllabus.pk)
 
 
 @login_required
@@ -501,10 +394,10 @@ def syllabus_upload_file(request, pk):
     if request.method != "POST":
         return redirect("syllabus_detail", pk=pk)
 
-    can_upload = request.user.role == "admin" or (
-        request.user.role == "umu" and syllabus.status == Syllabus.Status.APPROVED_UMU
-    ) or (
+    can_upload = (
         request.user == syllabus.creator and syllabus.status != Syllabus.Status.APPROVED_UMU
+    ) or (
+        request.user.role == "umu" and syllabus.status == Syllabus.Status.APPROVED_UMU
     )
     if not can_upload:
         raise PermissionDenied("У вас нет прав на загрузку файла для этого силлабуса.")
@@ -514,15 +407,21 @@ def syllabus_upload_file(request, pk):
         syllabus.pdf_file.save(uploaded.name, uploaded, save=False)
         syllabus.version_number += 1
         syllabus.save()
+        SyllabusRevision.objects.create(
+            syllabus=syllabus,
+            changed_by=request.user,
+            version_number=syllabus.version_number,
+            note="Загружен PDF",
+        )
 
     return redirect("syllabus_detail", pk=pk)
 
 
 @login_required
-@role_required("teacher", "dean", "admin")
+@role_required("teacher")
 def syllabus_toggle_share(request, pk):
     syllabus = get_object_or_404(Syllabus, pk=pk)
-    if request.user != syllabus.creator and request.user.role != "admin":
+    if request.user != syllabus.creator:
         raise PermissionDenied("Недостаточно прав, чтобы менять доступ к силлабусу.")
 
     if request.method == "POST":

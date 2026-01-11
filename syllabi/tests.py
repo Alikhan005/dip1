@@ -19,7 +19,26 @@ class SyllabusRoleViewTests(TestCase):
             available_languages="ru",
         )
 
-    def test_dean_can_create_syllabus(self):
+    def test_teacher_can_create_syllabus(self):
+        teacher = self._create_user("teacher_user", "teacher")
+        course = self._create_course(teacher)
+        self.client.force_login(teacher)
+
+        response = self.client.post(
+            reverse("syllabus_create"),
+            {
+                "course": course.pk,
+                "semester": "Fall 2025",
+                "academic_year": "2025-2026",
+                "total_weeks": 15,
+                "main_language": "ru",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Syllabus.objects.filter(creator=teacher, course=course).exists())
+
+    def test_dean_cannot_create_syllabus(self):
         dean = self._create_user("dean_user", "dean")
         course = self._create_course(dean)
         self.client.force_login(dean)
@@ -35,8 +54,7 @@ class SyllabusRoleViewTests(TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(Syllabus.objects.filter(creator=dean, course=course).exists())
+        self.assertEqual(response.status_code, 403)
 
     def test_umu_buttons_visible_for_submitted_umu(self):
         teacher = self._create_user("teacher_user", "teacher")

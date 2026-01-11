@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -13,10 +15,23 @@ from django.urls import reverse_lazy
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, UpdateView
 
-from .forms import EmailVerificationForm, LoginForm, ProfileForm, ResendEmailForm, SignupForm
-from .services import can_resend, create_or_refresh_verification, send_verification_email
+from .forms import (
+    EmailVerificationForm,
+    LoginForm,
+    PasswordResetIdentifierForm,
+    ProfileForm,
+    ResendEmailForm,
+    SignupForm,
+)
+from .services import (
+    can_resend,
+    create_or_refresh_verification,
+    resolve_from_email,
+    send_verification_email,
+)
 
 VERIFY_SESSION_KEY = "pending_user_id"
+logger = logging.getLogger(__name__)
 
 
 class LoginGateView(BaseLoginView):
@@ -51,6 +66,10 @@ class LoginGateView(BaseLoginView):
                                 "Аккаунт не активирован. Мы отправили код подтверждения.",
                             )
                         except Exception:
+                            logger.exception(
+                                "Failed to send verification email for user_id=%s",
+                                user.pk,
+                            )
                             messages.error(
                                 self.request,
                                 "Не удалось отправить письмо с кодом. Попробуйте позже.",
@@ -58,6 +77,10 @@ class LoginGateView(BaseLoginView):
                     self.request.session[VERIFY_SESSION_KEY] = user.pk
                     return redirect("verify_email")
                 except Exception:
+                    logger.exception(
+                        "Failed to prepare verification code for user_id=%s",
+                        user.pk,
+                    )
                     messages.error(
                         self.request,
                         "Не удалось подготовить код подтверждения. Попробуйте позже.",
@@ -115,6 +138,10 @@ class SignupView(CreateView):
                         "Мы отправили код подтверждения на почту. Введите его для активации аккаунта.",
                     )
             except Exception:
+                logger.exception(
+                    "Failed to send verification email for user_id=%s",
+                    user.pk,
+                )
                 messages.error(
                     self.request,
                     "Не удалось отправить письмо с кодом. Попробуйте позже.",
@@ -141,14 +168,25 @@ class PasswordResetGateView(PasswordResetView):
     subject_template_name = "registration/password_reset_subject.txt"
     success_url = reverse_lazy("password_reset_done")
     extra_context = {"hide_nav": True}
+    form_class = PasswordResetIdentifierForm
 
     def form_valid(self, form):
-        email = (form.cleaned_data.get("email") or "").strip()
+        self.from_email = resolve_from_email()
+        identifier = (form.cleaned_data.get("email") or "").strip()
         user_model = get_user_model()
+        email = identifier
+        if identifier and "@" not in identifier:
+            user = user_model.objects.filter(username__iexact=identifier).first()
+            if not user or not user.email:
+                form.add_error("email", "Пользователь с таким email или логином не найден.")
+                return self.form_invalid(form)
+            email = user.email
+
         users = list(user_model.objects.filter(email__iexact=email))
         if not users:
-            form.add_error("email", "Пользователь с таким email не найден.")
+            form.add_error("email", "Пользователь с таким email или логином не найден.")
             return self.form_invalid(form)
+        form.cleaned_data["email"] = email
 
         active_exists = any(user.is_active for user in users)
         inactive_user = next(
@@ -159,6 +197,10 @@ class PasswordResetGateView(PasswordResetView):
             try:
                 code, ttl_minutes = create_or_refresh_verification(inactive_user)
             except Exception:
+                logger.exception(
+                    "Failed to prepare verification code for user_id=%s",
+                    inactive_user.pk,
+                )
                 form.add_error(
                     None,
                     "Не удалось подготовить код подтверждения. Попробуйте позже.",
@@ -171,6 +213,10 @@ class PasswordResetGateView(PasswordResetView):
                     "Аккаунт не активирован. Мы отправили код подтверждения на почту.",
                 )
             except Exception:
+                logger.exception(
+                    "Failed to send verification email for user_id=%s",
+                    inactive_user.pk,
+                )
                 messages.error(
                     self.request,
                     "Не удалось отправить письмо с кодом. Попробуйте позже.",
@@ -181,6 +227,7 @@ class PasswordResetGateView(PasswordResetView):
         try:
             return super().form_valid(form)
         except Exception:
+            logger.exception("Failed to send password reset email for %s", email)
             form.add_error(
                 None,
                 "Не удалось отправить письмо для восстановления. Проверьте настройки почты и попробуйте позже.",
@@ -260,6 +307,10 @@ def resend_email_code(request):
         send_verification_email(user, code, ttl_minutes)
         messages.success(request, "Новый код отправлен на почту.")
     except Exception:
+        logger.exception(
+            "Failed to send verification email for user_id=%s",
+            user.pk,
+        )
         messages.error(request, "Не удалось отправить письмо с кодом. Попробуйте позже.")
 
     request.session[VERIFY_SESSION_KEY] = user.pk

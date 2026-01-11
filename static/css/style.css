@@ -68,6 +68,22 @@ h4 {
   letter-spacing: -0.015em;
 }
 
+.section-title {
+  position: relative;
+  padding-left: 0.75rem;
+}
+
+.section-title::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.2rem;
+  bottom: 0.2rem;
+  width: 4px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--accent), var(--accent-warm));
+}
+
 @keyframes fade-up {
   from {
     opacity: 0;
@@ -201,6 +217,11 @@ textarea:focus {
   outline: none;
 }
 
+input::placeholder,
+textarea::placeholder {
+  color: rgba(90, 102, 124, 0.7);
+}
+
 .btn-primary {
   padding: 0.6rem 1.15rem;
   background: linear-gradient(135deg, #0f766e 0%, #0b5b53 100%);
@@ -282,6 +303,11 @@ textarea:focus {
 
 .card:hover {
   transform: translateY(-2px);
+  box-shadow: var(--shadow-strong);
+}
+
+.card:focus-within {
+  border-color: rgba(15, 118, 110, 0.35);
   box-shadow: var(--shadow-strong);
 }
 

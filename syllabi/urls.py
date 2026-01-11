@@ -9,7 +9,6 @@ urlpatterns = [
     path("<int:pk>/", views.syllabus_detail, name="syllabus_detail"),
     path("<int:pk>/edit-details/", views.syllabus_edit_details, name="syllabus_edit_details"),
     path("<int:pk>/edit-topics/", views.syllabus_edit_topics, name="syllabus_edit_topics"),
-    path("<int:pk>/ai-draft/", views.syllabus_ai_draft, name="syllabus_ai_draft"),
     path("<int:pk>/pdf/", views.syllabus_pdf, name="syllabus_pdf"),
     path("<int:pk>/status/<str:new_status>/", views.syllabus_change_status, name="syllabus_change_status"),
     path("<int:pk>/upload/", views.syllabus_upload_file, name="syllabus_upload_file"),
