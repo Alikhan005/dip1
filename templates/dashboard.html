@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Панель управления{% endblock %}
+{% block body_class %}dashboard-page{% endblock %}
 {% block content %}
+<div class="dashboard">
+  <div class="dashboard__main">
 <div class="mb-6">
   <h1 class="text-3xl font-bold">Панель управления — {{ user.get_role_display }}</h1>
   <p class="text-gray-600 mt-2">
@@ -17,7 +20,7 @@
 </div>
 
 {% if user.can_view_courses or user.can_view_shared_courses %}
-  <div class="grid gap-4 md:grid-cols-4">
+  <div class="dashboard-grid">
     {% if user.can_view_courses %}
     <div class="card p-5 flex flex-col justify-between">
       <div>
@@ -75,7 +78,7 @@
     </div>
   </div>
 
-  <div class="card p-5 mt-6">
+  <div class="card p-5">
     <h2 class="text-xl font-semibold mb-3">Первые шаги</h2>
     <ol class="list-decimal ml-6 text-slate-600 space-y-2">
       <li>Создайте курс и заполните банк тем (названия, часы, литература).</li>
@@ -91,7 +94,7 @@
     {% endif %}
   </div>
 
-  <div class="card p-5 mt-6">
+  <div class="card p-5">
     <h2 class="text-xl font-semibold mb-3">Мои заявки на согласование</h2>
     {% if my_reviews %}
       <div class="space-y-3">
@@ -110,7 +113,7 @@
     {% endif %}
   </div>
 {% else %}
-  <div class="grid gap-4 md:grid-cols-2">
+  <div class="dashboard-grid">
     <div class="card p-5 flex flex-col justify-between">
       <div>
         <h2 class="text-xl font-semibold mb-2">Все силлабусы</h2>
@@ -140,7 +143,7 @@
 {% endif %}
 
 {% if user.role == "dean" or user.role == "admin" %}
-  <div class="card p-5 mt-6">
+  <div class="card p-5">
     <h2 class="text-xl font-semibold mb-3">На согласовании у декана</h2>
     {% if pending_dean %}
       <div class="space-y-3">
@@ -177,7 +180,7 @@
 {% endif %}
 
 {% if user.role == "umu" or user.role == "admin" %}
-  <div class="card p-5 mt-6">
+  <div class="card p-5">
     <h2 class="text-xl font-semibold mb-3">На согласовании в УМУ</h2>
     {% if pending_umu %}
       <div class="space-y-3">
@@ -212,4 +215,30 @@
     {% endif %}
   </div>
 {% endif %}
+  </div>
+  <aside class="dashboard__aside">
+    <div class="card p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-lg font-semibold">Объявления</h2>
+        <span class="text-sm text-slate-500">Все</span>
+      </div>
+      <div class="space-y-3 text-sm text-slate-600">
+        <div class="rounded-lg border border-slate-200/70 bg-white/80 p-3">
+          Публикаций пока нет. Новые объявления появятся здесь.
+        </div>
+        <div class="rounded-lg border border-slate-200/70 bg-white/80 p-3">
+          Следите за новостями кафедры и расписанием.
+        </div>
+      </div>
+    </div>
+    <div class="card p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-lg font-semibold">Уведомления</h2>
+      </div>
+      <div class="rounded-lg border border-slate-200/70 bg-white/80 p-3 text-sm text-slate-600">
+        Здесь будут напоминания по задачам, дедлайнам и статусам согласования.
+      </div>
+    </div>
+  </aside>
+</div>
 {% endblock %}

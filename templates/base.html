@@ -9,13 +9,14 @@
   <link rel="shortcut icon" type="image/x-icon" href="{% static 'img/favicon1.ico' %}?v=3">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/htmx.org@2.0.0"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="{% static 'css/style.css' %}?v=6">
+  <link rel="stylesheet" href="{% static 'css/style.css' %}?v=10">
 </head>
-<body class="bg-slate-100 text-slate-800">
+<body class="bg-slate-100 text-slate-800 {% block body_class %}{% endblock %}">
   {% if user.is_authenticated and not hide_nav %}
+  <div class="app-shell">
   <nav class="site-nav" data-site-nav>
     <div class="site-nav__inner">
       <div class="flex items-center space-x-3 site-nav__brand">
@@ -62,7 +63,6 @@
     </div>
   </nav>
   {% endif %}
-
   <main class="page-container">
     {% if messages %}
       <div class="space-y-2 mb-4">
@@ -73,6 +73,9 @@
     {% endif %}
     {% block content %}{% endblock %}
   </main>
+  {% if user.is_authenticated and not hide_nav %}
+  </div>
+  {% endif %}
 
   {% if user.is_authenticated and not hide_nav %}
     <div class="ai-widget" data-ai-widget>

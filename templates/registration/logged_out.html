@@ -2,12 +2,27 @@
 
 {% block title %}Выход{% endblock %}
 
+{% block body_class %}auth-page{% endblock %}
 {% block content %}
-  <div class="max-w-md mx-auto card p-6 text-center">
+<div class="auth-shell">
+  <div class="auth-shell__decor" aria-hidden="true">
+    <div class="auth-shell__brand">AlmaU Syllabus</div>
+    <div class="auth-shell__mock">
+      <span class="auth-shell__line auth-shell__line--title"></span>
+      <span class="auth-shell__line"></span>
+      <span class="auth-shell__line"></span>
+      <span class="auth-shell__line auth-shell__line--cta"></span>
+    </div>
+  </div>
+  <div class="auth-shell__panel">
+  <div class="card auth-card auth-card--compact text-center">
+    <div class="auth-card__brand">AlmaU Syllabus</div>
     <h1 class="text-2xl font-semibold mb-2">Вы вышли из системы</h1>
     <p class="text-slate-700 mb-4">
       Сессия завершена. Если это были не вы, пожалуйста, войдите снова.
     </p>
     <a href="{% url 'login' %}" class="link">Вернуться к входу</a>
   </div>
+  </div>
+</div>
 {% endblock %}
