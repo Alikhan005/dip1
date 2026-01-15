@@ -2,21 +2,19 @@ import os
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
-from dotenv import load_dotenv
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / ".env", override=True)
-
-# Загружаем .env автоматически, чтобы email/БД и другие настройки брались из файла окружения
 try:
     from dotenv import load_dotenv  # type: ignore
-except Exception:  # pragma: no cover - опциональная зависимость
+except Exception:  # pragma: no cover - optional dependency
     load_dotenv = None
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Загружаем .env автоматически, чтобы email/БД и другие настройки брались из файла окружения
 if load_dotenv:
-    env_path = BASE_DIR / ".env"
-    if env_path.exists():
-        load_dotenv(env_path)
+    for env_path in (BASE_DIR / ".env", BASE_DIR.parent / ".env"):
+        if env_path.exists():
+            load_dotenv(env_path, override=True)
+            break
 
 
 def _ensure_sqlite_dir(path_str: str) -> str:

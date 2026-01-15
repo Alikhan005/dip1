@@ -7,6 +7,10 @@ from django.contrib.staticfiles.views import serve as staticfiles_serve
 from django.urls import include, path
 from django.views.static import serve as media_serve
 
+admin.site.site_header = "AlmaU Syllabus Copy Admin"
+admin.site.site_title = "AlmaU Syllabus Copy"
+admin.site.index_title = "Administration"
+
 from accounts.views import (
     LoginGateView,
     LogoutAllowGetView,
