@@ -17,6 +17,13 @@
   {% endif %}
 </div>
 
+<div class="callout mb-4">
+  <div class="callout__badge">i</div>
+  <div class="callout__text">
+    Темы курса — основа силлабуса. Сначала заполните темы, затем используйте их при создании силлабуса на семестр.
+  </div>
+</div>
+
 <div class="flex justify-between items-center mb-2">
   <h2 class="text-xl font-semibold">Темы курса</h2>
   {% if user == course.owner or user.role == "admin" %}
@@ -24,80 +31,88 @@
   {% endif %}
 </div>
 
-<table class="table">
-  <thead>
-    <tr class="border-b">
-      <th class="p-2 text-left">№</th>
-      <th class="p-2 text-left">Название и описание</th>
-      <th class="p-2 text-left">Часы</th>
-      <th class="p-2 text-left">Тип недели</th>
-      <th class="p-2 text-left">Материалы</th>
-      <th class="p-2 text-left"></th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for topic in topics %}
-    <tr class="border-b align-top">
-      <td class="p-2">{{ topic.order_index }}</td>
-      <td class="p-2">
-        <div class="font-medium">
-          {{ topic.title_ru|default:topic.title_en|default:topic.title_kz }}
-        </div>
-        {% if topic.description_ru or topic.description_en or topic.description_kz %}
-          <div class="text-sm text-slate-600 mt-1">
-            {{ topic.description_ru|default:topic.description_en|default:topic.description_kz|truncatechars:140 }}
+{% if topics %}
+  <table class="table">
+    <thead>
+      <tr class="border-b">
+        <th class="p-2 text-left">№</th>
+        <th class="p-2 text-left">Название и описание</th>
+        <th class="p-2 text-left">Часы</th>
+        <th class="p-2 text-left">Тип недели</th>
+        <th class="p-2 text-left">Материалы</th>
+        <th class="p-2 text-left"></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for topic in topics %}
+      <tr class="border-b align-top">
+        <td class="p-2">{{ topic.order_index }}</td>
+        <td class="p-2">
+          <div class="font-medium">
+            {{ topic.title_ru|default:topic.title_en|default:topic.title_kz }}
           </div>
-        {% endif %}
-      </td>
-      <td class="p-2">{{ topic.default_hours }}</td>
-      <td class="p-2">{{ topic.get_week_type_display }}</td>
-      <td class="p-2 text-sm">
-        <details>
-          <summary class="cursor-pointer link">Смотреть</summary>
-          <div class="mt-2 space-y-3">
-            <div>
-              <div class="font-medium text-slate-700">Литература</div>
-              {% if topic.literature.all %}
-                <ul class="list-disc ml-5 text-slate-600">
-                  {% for lit in topic.literature.all %}
-                    <li>
-                      {{ lit.title }}
-                      {% if lit.author %} - {{ lit.author }}{% endif %}
-                      {% if lit.year %} ({{ lit.year }}){% endif %}
-                      <span class="text-slate-400">- {{ lit.get_lit_type_display }}</span>
-                    </li>
-                  {% endfor %}
-                </ul>
-              {% else %}
-                <p class="text-slate-500">Нет записей.</p>
-              {% endif %}
+          {% if topic.description_ru or topic.description_en or topic.description_kz %}
+            <div class="text-sm text-slate-600 mt-1">
+              {{ topic.description_ru|default:topic.description_en|default:topic.description_kz|truncatechars:140 }}
             </div>
-            <div>
-              <div class="font-medium text-slate-700">Контрольные вопросы</div>
-              {% if topic.questions.all %}
-                <ul class="list-disc ml-5 text-slate-600">
-                  {% for q in topic.questions.all %}
-                    <li>{{ q.question_ru|default:q.question_en|default:q.question_kz }}</li>
-                  {% endfor %}
-                </ul>
-              {% else %}
-                <p class="text-slate-500">Нет записей.</p>
-              {% endif %}
+          {% endif %}
+        </td>
+        <td class="p-2">{{ topic.default_hours }}</td>
+        <td class="p-2">{{ topic.get_week_type_display }}</td>
+        <td class="p-2 text-sm">
+          <details>
+            <summary class="cursor-pointer link">Смотреть</summary>
+            <div class="mt-2 space-y-3">
+              <div>
+                <div class="font-medium text-slate-700">Литература</div>
+                {% if topic.literature.all %}
+                  <ul class="list-disc ml-5 text-slate-600">
+                    {% for lit in topic.literature.all %}
+                      <li>
+                        {{ lit.title }}
+                        {% if lit.author %} - {{ lit.author }}{% endif %}
+                        {% if lit.year %} ({{ lit.year }}){% endif %}
+                        <span class="text-slate-400">- {{ lit.get_lit_type_display }}</span>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <p class="text-slate-500">Нет записей.</p>
+                {% endif %}
+              </div>
+              <div>
+                <div class="font-medium text-slate-700">Контрольные вопросы</div>
+                {% if topic.questions.all %}
+                  <ul class="list-disc ml-5 text-slate-600">
+                    {% for q in topic.questions.all %}
+                      <li>{{ q.question_ru|default:q.question_en|default:q.question_kz }}</li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <p class="text-slate-500">Нет записей.</p>
+                {% endif %}
+              </div>
             </div>
-          </div>
-        </details>
-      </td>
-      <td class="p-2">
-        {% if user == course.owner or user.role == "admin" %}
-          <a href="{% url 'topic_edit' course.pk topic.pk %}" class="link">Редактировать</a>
-        {% endif %}
-      </td>
-    </tr>
-  {% empty %}
-    <tr>
-      <td colspan="6" class="p-4">Темы пока не добавлены.</td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
+          </details>
+        </td>
+        <td class="p-2">
+          {% if user == course.owner or user.role == "admin" %}
+            <a href="{% url 'topic_edit' course.pk topic.pk %}" class="link">Редактировать</a>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <div class="empty-state">
+    <div class="empty-state__title">Темы пока не добавлены</div>
+    <div class="empty-state__text">Добавьте темы, чтобы сформировать структуру силлабуса по неделям.</div>
+    {% if user == course.owner or user.role == "admin" %}
+      <div class="page-actions mt-4">
+        <a href="{% url 'topic_create' course.pk %}" class="btn-primary">Добавить тему</a>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}
 {% endblock %}

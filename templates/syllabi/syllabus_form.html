@@ -1,11 +1,37 @@
 {% extends "base.html" %}
 {% block title %}Новый силлабус{% endblock %}
 {% block content %}
-<div class="flex flex-col gap-2 mb-6">
-  <h1 class="text-2xl font-semibold">Новый силлабус</h1>
-  <p class="text-sm text-slate-600">
-    Заполните базовые данные, выберите стартовую структуру и при необходимости загрузите старый PDF.
-  </p>
+<div class="page-header">
+  <div>
+    <div class="page-kicker">Шаг 1 из 3</div>
+    <h1 class="page-title">Новый силлабус</h1>
+    <p class="page-subtitle">
+      Создайте карточку силлабуса: выберите курс, семестр и базовую структуру. Дальше можно работать с темами
+      или прикрепить PDF и править только нужные разделы.
+    </p>
+    <div class="stepper mt-3">
+      <div class="stepper__item is-active">
+        <span class="stepper__badge">1</span>
+        <span>Карточка силлабуса</span>
+      </div>
+      <div class="stepper__item">
+        <span class="stepper__badge">2</span>
+        <span>Темы и недели</span>
+      </div>
+      <div class="stepper__item">
+        <span class="stepper__badge">3</span>
+        <span>Детали и отправка</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="callout mb-6">
+  <div class="callout__badge">i</div>
+  <div class="callout__text">
+    Если у вас уже есть прошлый силлабус — выберите его как основу или загрузите PDF.
+    Темы можно заполнять позже или не заполнять вовсе, если работаете только с PDF.
+  </div>
 </div>
 
 {% if form.non_field_errors %}
@@ -89,14 +115,15 @@
     </div>
     <p class="text-sm text-slate-600 mt-4">
       Совет: если выбрали прошлый силлабус, его темы будут скопированы, а порядок и часы можно быстро поправить.
+      Если хотите идти только через PDF, снимите галочку «Заполнить темы из курса».
     </p>
   </div>
 
   <div id="upload" class="card p-5">
     <h2 class="text-lg font-semibold mb-2 section-title">3. Файл старого силлабуса (опционально)</h2>
     <p class="text-sm text-slate-600 mb-4">
-      Загрузите старый PDF для справки — он не редактируется внутри системы. Для правок используйте
-      конструктор тем и разделов, а для повторного использования выберите прошлый силлабус выше.
+      Загрузите PDF, чтобы использовать его как основную версию для согласования. Темы и разделы можно заполнять
+      при необходимости — это опционально для корректировок и повторного использования.
     </p>
     <div>
       <label for="{{ form.pdf_file.id_for_label }}">{{ form.pdf_file.label }}</label>
@@ -111,7 +138,7 @@
   </div>
 
   <div class="flex flex-wrap gap-3">
-    <button class="btn-primary">Создать и перейти к темам</button>
+    <button class="btn-primary">Сохранить и продолжить</button>
     <a href="{% url 'syllabi_list' %}" class="btn-secondary">Отмена</a>
   </div>
 </form>

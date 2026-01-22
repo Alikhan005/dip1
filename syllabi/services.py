@@ -40,9 +40,23 @@ def _build_literature_lists(topics):
 
 def validate_syllabus_structure(syllabus) -> list[str]:
     errors = []
-    topics = list(syllabus.syllabus_topics.all())
+    if not syllabus.course_id:
+        errors.append("Не выбран курс.")
+    if not (syllabus.semester or "").strip():
+        errors.append("Не указан семестр.")
+    if not (syllabus.academic_year or "").strip():
+        errors.append("Не указан учебный год.")
+    if syllabus.total_weeks and syllabus.total_weeks <= 0:
+        errors.append("Количество недель должно быть больше нуля.")
+
+    topics = list(
+        syllabus.syllabus_topics.select_related("topic").prefetch_related("topic__literature")
+    )
     if not topics:
-        return ["Добавьте хотя бы одну тему."]
+        if syllabus.pdf_file:
+            return []
+        errors.append("Добавьте хотя бы одну тему или загрузите PDF.")
+        return errors
 
     week_numbers = [st.week_number for st in topics if st.week_number]
     if len(week_numbers) != len(topics):
@@ -59,6 +73,28 @@ def validate_syllabus_structure(syllabus) -> list[str]:
             errors.append(
                 f"Номер недели {max_week} выходит за предел {syllabus.total_weeks}."
             )
+
+    invalid_hours = []
+    for st in topics:
+        hours = st.custom_hours if st.custom_hours is not None else st.topic.default_hours
+        if hours is None or hours <= 0:
+            invalid_hours.append(st.get_title())
+    if invalid_hours:
+        errors.append(
+            "Есть темы с некорректным числом часов: " + ", ".join(invalid_hours) + "."
+        )
+
+    has_literature = bool((syllabus.main_literature or "").strip() or (syllabus.additional_literature or "").strip())
+    if not has_literature:
+        for st in topics:
+            if (st.literature_notes or "").strip():
+                has_literature = True
+                break
+            if st.topic.literature.exists():
+                has_literature = True
+                break
+    if not has_literature:
+        errors.append("Добавьте литературу в темы или в общий список литературы.")
 
     return errors
 

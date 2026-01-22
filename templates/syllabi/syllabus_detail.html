@@ -47,6 +47,34 @@
   </div>
 </div>
 
+<div class="callout mb-4">
+  <div class="callout__badge">!</div>
+  <div class="callout__text">
+    {% if can_submit_dean %}
+      Следующий шаг: проверьте заполнение разделов и отправьте силлабус декану на согласование.
+    {% elif can_approve_dean %}
+      Следующий шаг: проверьте структуру и нагрузку, оставьте комментарий и утвердите либо верните на доработку.
+    {% elif can_submit_umu %}
+      Следующий шаг: документ утвержден деканом — отправьте его в УМУ.
+    {% elif can_approve_umu %}
+      Следующий шаг: финальная проверка УМУ — утвердите документ или верните на доработку с комментарием.
+    {% elif is_frozen %}
+      Финальная версия зафиксирована. Доступно скачивание PDF и просмотр истории изменений.
+    {% else %}
+      Документ доступен для просмотра. Редактирование доступно только автору-преподавателю.
+    {% endif %}
+  </div>
+</div>
+
+{% if syllabus.pdf_file and not has_topics %}
+  <div class="card p-4 mb-4">
+    <div class="font-semibold">Силлабус работает в PDF-режиме</div>
+    <p class="text-sm text-slate-600 mt-1">
+      Темы не заполнены — для согласования используется загруженный PDF. При необходимости темы можно добавить позже.
+    </p>
+  </div>
+{% endif %}
+
 {% if is_frozen %}
   <div class="card p-4 mb-4">
     <div class="font-semibold">Силлабус утвержден УМУ и заморожен</div>
@@ -115,7 +143,9 @@
       {% else %}
         <p class="text-gray-600 text-sm">Файл пока не загружен.</p>
       {% endif %}
-      <p class="text-xs text-slate-500 mt-1">PDF хранится как вложение; редактирование выполняется в темах и разделах.</p>
+      <p class="text-xs text-slate-500 mt-1">
+        PDF хранится как вложение; редактирование выполняется в темах и разделах. Если тем нет, используется PDF.
+      </p>
       {% if syllabus.is_shared %}
         <p class="text-xs text-slate-500">Этот файл виден другим преподавателям по похожим дисциплинам.</p>
       {% endif %}
@@ -131,12 +161,18 @@
 
 </div>
 
-<div class="flex items-center gap-3 mb-4">
-  <form method="post" action="{% url 'ai_check_run' syllabus.pk %}">
-    {% csrf_token %}
-    <button class="btn-primary">Запустить AI-проверку</button>
-  </form>
-</div>
+{% if has_topics %}
+  <div class="flex items-center gap-3 mb-4">
+    <form method="post" action="{% url 'ai_check_run' syllabus.pk %}">
+      {% csrf_token %}
+      <button class="btn-primary">Запустить AI-проверку</button>
+    </form>
+  </div>
+{% else %}
+  <div class="text-sm text-slate-500 mb-4">
+    AI-проверка доступна после заполнения тем.
+  </div>
+{% endif %}
 
 {% if syllabus.ai_checks.exists %}
   <div class="mb-6">
@@ -170,6 +206,37 @@
               {{ log.changed_at|date:"d.m.Y H:i" }}
               {% if log.changed_by %}
                 - {{ log.changed_by.get_full_name|default:log.changed_by.username }}
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+
+{% if syllabus.audit_logs.exists %}
+  <div class="mb-6">
+    <h3 class="text-lg font-semibold mb-2">Журнал действий</h3>
+    <div class="card divide-y">
+      {% for log in syllabus.audit_logs.all %}
+        <div class="px-4 py-2 text-sm">
+          <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <span class="font-medium">{{ log.get_action_display }}</span>
+              {% if log.message %}
+                <span class="text-gray-500 ml-2">{{ log.message }}</span>
+              {% endif %}
+              {% if log.metadata.fields %}
+                <span class="text-gray-500 ml-2">
+                  Поля: {{ log.metadata.fields|join:", " }}
+                </span>
+              {% endif %}
+            </div>
+            <div class="text-gray-500">
+              {{ log.created_at|date:"d.m.Y H:i" }}
+              {% if log.actor %}
+                - {{ log.actor.get_full_name|default:log.actor.username }}
               {% endif %}
             </div>
           </div>

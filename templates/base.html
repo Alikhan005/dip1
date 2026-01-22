@@ -9,10 +9,10 @@
   <link rel="shortcut icon" type="image/x-icon" href="{% static 'img/favicon1.ico' %}?v=3">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&family=Merriweather:wght@600;700;900&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/htmx.org@2.0.0"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="{% static 'css/style.css' %}?v=10">
+  <link rel="stylesheet" href="{% static 'css/style.css' %}?v=11">
 </head>
 <body class="bg-slate-100 text-slate-800 {% block body_class %}{% endblock %}">
   {% if user.is_authenticated and not hide_nav %}
@@ -47,7 +47,7 @@
               <a href="{% url 'shared_courses_list' %}" class="nav-link">Общие курсы</a>
             {% endif %}
             <a href="{% url 'syllabi_list' %}" class="nav-link">Силлабусы</a>
-            {% if user.role == "teacher" %}
+            {% if user.role == "teacher" or user.role == "program_leader" %}
               <a href="{% url 'shared_syllabi_list' %}" class="nav-link">Общие силлабусы</a>
             {% endif %}
           </div>

@@ -1,86 +1,191 @@
 {% extends "base.html" %}
 {% block title %}Силлабусы{% endblock %}
 {% block content %}
-<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-  <h1 class="text-2xl font-semibold">Силлабусы</h1>
+<div class="page-header">
+  <div>
+    <div class="page-kicker">Единое хранилище</div>
+    <h1 class="page-title">Силлабусы</h1>
+    <p class="page-subtitle">
+      Все версии, статусы и файлы хранятся в одном месте. Здесь можно быстро открыть нужный документ и
+      перейти к согласованию.
+    </p>
+  </div>
   {% if user.can_edit_content %}
-    <div class="flex flex-wrap gap-2">
+    <div class="page-actions">
       <a href="{% url 'syllabus_create' %}#upload" class="btn-secondary">Загрузить старый PDF</a>
       <a href="{% url 'syllabus_create' %}" class="btn-primary">Создать силлабус</a>
     </div>
   {% endif %}
 </div>
 
-<table class="table">
-  <thead>
-    <tr class="border-b">
-      <th class="p-2 text-left">Курс</th>
-      <th class="p-2 text-left">Семестр</th>
-      <th class="p-2 text-left">Статус</th>
-      <th class="p-2 text-left">Доступ</th>
-      <th class="p-2 text-left">Автор</th>
-      <th class="p-2 text-left">PDF</th>
-      <th class="p-2 text-left"></th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for syllabus in syllabi %}
-    <tr class="border-b align-middle">
-      <td class="p-2">{{ syllabus.course.code }}</td>
-      <td class="p-2">{{ syllabus.semester }} / {{ syllabus.academic_year }}</td>
-      <td class="p-2">{{ syllabus.get_status_display }}</td>
-      <td class="p-2 text-sm">
-        {% if syllabus.is_shared %}
-          <span class="badge badge--shared">Общий</span>
-        {% else %}
-          <span class="badge">Личный</span>
-        {% endif %}
-      </td>
-      <td class="p-2 text-sm">
-        {{ syllabus.creator.get_full_name|default:syllabus.creator.username }}
-      </td>
-      <td class="p-2 text-sm">
-        {% if syllabus.pdf_file %}
-          <a href="{{ syllabus.pdf_file.url }}" class="link">Скачать</a>
-        {% else %}
-          <span class="text-gray-500">Нет файла</span>
-        {% endif %}
-      </td>
-      <td class="p-2">
-        <div class="flex flex-wrap gap-2">
-          <a href="{% url 'syllabus_detail' syllabus.pk %}" class="link">Открыть</a>
-          {% if user.role == "admin" and syllabus.status == "submitted_dean" or user.role == "dean" and syllabus.status == "submitted_dean" and syllabus.creator != user %}
-            <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'approved_dean' %}" class="inline-flex items-center gap-2">
-              {% csrf_token %}
-              <input type="text" name="comment" placeholder="Комментарий" class="border rounded px-2 py-1 text-sm">
-              <button class="btn-primary">Утвердить</button>
-            </form>
-            <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'rejected' %}" class="inline-flex items-center gap-2">
-              {% csrf_token %}
-              <input type="text" name="comment" placeholder="Причина отклонения" class="border rounded px-2 py-1 text-sm" required>
-              <button class="btn-secondary">Отклонить</button>
-            </form>
+<form method="get" class="card p-4 mb-6">
+  <div class="grid gap-4 md:grid-cols-4">
+    <div>
+      <label for="filter-q">Поиск</label>
+      <input
+        id="filter-q"
+        type="text"
+        name="q"
+        value="{{ filters.q }}"
+        placeholder="Курс, код, автор, семестр"
+      >
+    </div>
+    <div>
+      <label for="filter-status">Статус</label>
+      <select id="filter-status" name="status">
+        <option value="">Все статусы</option>
+        {% for value, label in status_options %}
+          <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="filter-year">Учебный год</label>
+      <select id="filter-year" name="year">
+        <option value="">Все годы</option>
+        {% for item in year_options %}
+          <option value="{{ item }}" {% if filters.year == item %}selected{% endif %}>{{ item }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="filter-course">Курс</label>
+      <select id="filter-course" name="course">
+        <option value="">Все курсы</option>
+        {% for item in course_options %}
+          <option value="{{ item.course_id }}" {% if filters.course == item.course_id|stringformat:"s" %}selected{% endif %}>
+            {{ item.course__code }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    {% if allow_creator_filter %}
+      <div class="md:col-span-2">
+        <label for="filter-creator">Автор</label>
+        <select id="filter-creator" name="creator">
+          <option value="">Все авторы</option>
+          {% for creator in creator_options %}
+            <option value="{{ creator.id }}" {% if filters.creator == creator.id|stringformat:"s" %}selected{% endif %}>
+              {{ creator.get_full_name|default:creator.username }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    {% endif %}
+  </div>
+  <div class="flex flex-wrap gap-2 mt-4">
+    <button class="btn-primary" type="submit">Применить</button>
+    <a href="{% url 'syllabi_list' %}" class="btn-secondary">Сбросить</a>
+  </div>
+</form>
+
+<div class="card p-5 mb-6">
+  <div class="guide-grid">
+    <div class="guide-card">
+      <div class="guide-card__title">1. Импортируйте основу</div>
+      <div class="guide-card__text">Загрузите прошлый PDF или выберите базовый силлабус.</div>
+    </div>
+    <div class="guide-card">
+      <div class="guide-card__title">2. Проверьте разделы</div>
+      <div class="guide-card__text">Отредактируйте темы, часы и описание без переписывания заново.</div>
+    </div>
+    <div class="guide-card">
+      <div class="guide-card__title">3. Согласуйте</div>
+      <div class="guide-card__text">Отправьте документ декану и в УМУ с фиксированной историей.</div>
+    </div>
+  </div>
+  <div class="text-sm text-slate-600 mt-3">
+    {% if user.role == "dean" %}
+      Ваша зона ответственности — проверка и утверждение структурных требований на уровне школы.
+    {% elif user.role == "umu" %}
+      Финальная проверка методических требований и фиксация итоговой версии.
+    {% endif %}
+  </div>
+</div>
+
+{% if syllabi %}
+  <table class="table">
+    <thead>
+      <tr class="border-b">
+        <th class="p-2 text-left">Курс</th>
+        <th class="p-2 text-left">Семестр</th>
+        <th class="p-2 text-left">Статус</th>
+        <th class="p-2 text-left">Доступ</th>
+        <th class="p-2 text-left">Автор</th>
+        <th class="p-2 text-left">PDF</th>
+        <th class="p-2 text-left"></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for syllabus in syllabi %}
+      <tr class="border-b align-middle">
+        <td class="p-2">{{ syllabus.course.code }}</td>
+        <td class="p-2">{{ syllabus.semester }} / {{ syllabus.academic_year }}</td>
+        <td class="p-2">{{ syllabus.get_status_display }}</td>
+        <td class="p-2 text-sm">
+          {% if syllabus.is_shared %}
+            <span class="badge badge--shared">Общий</span>
+          {% else %}
+            <span class="badge">Личный</span>
           {% endif %}
-          {% if user.role == "admin" and syllabus.status == "submitted_umu" or user.role == "umu" and syllabus.status == "submitted_umu" and syllabus.creator != user %}
-            <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'approved_umu' %}" class="inline-flex items-center gap-2">
-              {% csrf_token %}
-              <input type="text" name="comment" placeholder="Комментарий" class="border rounded px-2 py-1 text-sm">
-              <button class="btn-primary">Финально утвердить</button>
-            </form>
-            <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'rejected' %}" class="inline-flex items-center gap-2">
-              {% csrf_token %}
-              <input type="text" name="comment" placeholder="Причина отклонения" class="border rounded px-2 py-1 text-sm" required>
-              <button class="btn-secondary">Отклонить</button>
-            </form>
+        </td>
+        <td class="p-2 text-sm">
+          {{ syllabus.creator.get_full_name|default:syllabus.creator.username }}
+        </td>
+        <td class="p-2 text-sm">
+          {% if syllabus.pdf_file %}
+            <a href="{{ syllabus.pdf_file.url }}" class="link">Скачать</a>
+          {% else %}
+            <span class="text-gray-500">Нет файла</span>
           {% endif %}
-        </div>
-      </td>
-    </tr>
-  {% empty %}
-    <tr>
-      <td colspan="7" class="p-4">Силлабусы пока не созданы.</td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
+        </td>
+        <td class="p-2">
+          <div class="flex flex-wrap gap-2">
+            <a href="{% url 'syllabus_detail' syllabus.pk %}" class="link">Открыть</a>
+            {% if syllabus.status == "submitted_dean" and syllabus.creator != user %}
+              {% if user.is_admin_like or user.role == "dean" %}
+              <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'approved_dean' %}" class="inline-flex items-center gap-2">
+                {% csrf_token %}
+                <input type="text" name="comment" placeholder="Комментарий" class="border rounded px-2 py-1 text-sm">
+                <button class="btn-primary">Утвердить</button>
+              </form>
+              <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'rejected' %}" class="inline-flex items-center gap-2">
+                {% csrf_token %}
+                <input type="text" name="comment" placeholder="Причина отклонения" class="border rounded px-2 py-1 text-sm" required>
+                <button class="btn-secondary">Отклонить</button>
+              </form>
+            {% endif %}
+            {% endif %}
+            {% if syllabus.status == "submitted_umu" and syllabus.creator != user %}
+              {% if user.is_admin_like or user.role == "umu" %}
+              <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'approved_umu' %}" class="inline-flex items-center gap-2">
+                {% csrf_token %}
+                <input type="text" name="comment" placeholder="Комментарий" class="border rounded px-2 py-1 text-sm">
+                <button class="btn-primary">Финально утвердить</button>
+              </form>
+              <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'rejected' %}" class="inline-flex items-center gap-2">
+                {% csrf_token %}
+                <input type="text" name="comment" placeholder="Причина отклонения" class="border rounded px-2 py-1 text-sm" required>
+                <button class="btn-secondary">Отклонить</button>
+              </form>
+            {% endif %}
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <div class="empty-state">
+    <div class="empty-state__title">Силлабусов пока нет</div>
+    <div class="empty-state__text">Создайте новый документ или загрузите прошлый PDF для архивного хранения.</div>
+    {% if user.can_edit_content %}
+      <div class="page-actions mt-4">
+        <a href="{% url 'syllabus_create' %}" class="btn-primary">Создать силлабус</a>
+        <a href="{% url 'syllabus_create' %}#upload" class="btn-secondary">Загрузить PDF</a>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}
 {% endblock %}

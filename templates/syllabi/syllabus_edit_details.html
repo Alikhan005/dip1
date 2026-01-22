@@ -1,11 +1,36 @@
 {% extends "base.html" %}
 {% block title %}Редактирование разделов{% endblock %}
 {% block content %}
-<div class="flex flex-col gap-2 mb-6">
-  <h1 class="text-2xl font-semibold">Редактирование разделов силлабуса</h1>
-  <p class="text-sm text-slate-600">
-    Заполните ключевые разделы, которые попадут в PDF по образцу AlmaU.
-  </p>
+<div class="page-header">
+  <div>
+    <div class="page-kicker">Шаг 3 из 3</div>
+    <h1 class="page-title">Детали силлабуса</h1>
+    <p class="page-subtitle">
+      Заполните ключевые разделы, которые попадут в PDF. После сохранения вернитесь к карточке и отправьте документ
+      на согласование.
+    </p>
+    <div class="stepper mt-3">
+      <div class="stepper__item is-done">
+        <span class="stepper__badge">1</span>
+        <span>Карточка силлабуса</span>
+      </div>
+      <div class="stepper__item is-done">
+        <span class="stepper__badge">2</span>
+        <span>Темы и недели</span>
+      </div>
+      <div class="stepper__item is-active">
+        <span class="stepper__badge">3</span>
+        <span>Детали и отправка</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="callout mb-6">
+  <div class="callout__badge">i</div>
+  <div class="callout__text">
+    Заполняйте только те разделы, которые нужно обновить. Остальное можно оставить без изменений.
+  </div>
 </div>
 
 {% if form.non_field_errors %}

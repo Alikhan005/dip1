@@ -1,41 +1,74 @@
 {% extends "base.html" %}
 {% block title %}{% if user.role == "admin" %}Курсы{% else %}Мои курсы{% endif %}{% endblock %}
 {% block content %}
-<div class="flex justify-between items-center mb-4">
-  <h1 class="text-2xl font-semibold">
-    {% if user.role == "admin" %}Курсы{% else %}Мои курсы{% endif %}
-  </h1>
+<div class="page-header">
+  <div>
+    <div class="page-kicker">База дисциплин</div>
+    <h1 class="page-title">
+      {% if user.role == "admin" %}Курсы{% else %}Мои курсы{% endif %}
+    </h1>
+    <p class="page-subtitle">
+      Курс — это база тем и материалов. Сначала создайте курс, затем добавьте темы, а уже из них собирайте силлабус.
+    </p>
+  </div>
   {% if user.can_edit_content %}
-    <a href="{% url 'course_create' %}" class="btn-primary">Создать курс</a>
+    <div class="page-actions">
+      <a href="{% url 'course_create' %}" class="btn-primary">Создать курс</a>
+    </div>
   {% endif %}
 </div>
 
-<table class="table">
-  <thead>
-    <tr class="border-b">
-      <th class="text-left p-2">Код</th>
-      <th class="text-left p-2">Название</th>
-      <th class="text-left p-2">Языки</th>
-      <th class="text-left p-2">Общий</th>
-      <th class="text-left p-2"></th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for course in courses %}
-    <tr class="border-b">
-      <td class="p-2">{{ course.code }}</td>
-      <td class="p-2">{{ course.display_title }}</td>
-      <td class="p-2">{{ course.available_languages_display }}</td>
-      <td class="p-2">{{ course.is_shared|yesno:"Да,Нет" }}</td>
-      <td class="p-2">
-        <a href="{% url 'course_detail' course.pk %}" class="link">Открыть</a>
-      </td>
-    </tr>
-  {% empty %}
-    <tr>
-      <td colspan="5" class="p-4">Курсы пока не добавлены.</td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
+<div class="card p-5 mb-6">
+  <div class="guide-grid">
+    <div class="guide-card">
+      <div class="guide-card__title">1. Создайте курс</div>
+      <div class="guide-card__text">Код, название, языки и доступность.</div>
+    </div>
+    <div class="guide-card">
+      <div class="guide-card__title">2. Добавьте темы</div>
+      <div class="guide-card__text">Описание, часы, литература и вопросы.</div>
+    </div>
+    <div class="guide-card">
+      <div class="guide-card__title">3. Соберите силлабус</div>
+      <div class="guide-card__text">Выберите темы и отправьте на согласование.</div>
+    </div>
+  </div>
+</div>
+
+{% if courses %}
+  <table class="table">
+    <thead>
+      <tr class="border-b">
+        <th class="text-left p-2">Код</th>
+        <th class="text-left p-2">Название</th>
+        <th class="text-left p-2">Языки</th>
+        <th class="text-left p-2">Общий</th>
+        <th class="text-left p-2"></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for course in courses %}
+      <tr class="border-b">
+        <td class="p-2">{{ course.code }}</td>
+        <td class="p-2">{{ course.display_title }}</td>
+        <td class="p-2">{{ course.available_languages_display }}</td>
+        <td class="p-2">{{ course.is_shared|yesno:"Да,Нет" }}</td>
+        <td class="p-2">
+          <a href="{% url 'course_detail' course.pk %}" class="link">Открыть</a>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <div class="empty-state">
+    <div class="empty-state__title">Курсов пока нет</div>
+    <div class="empty-state__text">Создайте курс, чтобы формировать темы и силлабусы быстрее.</div>
+    {% if user.can_edit_content %}
+      <div class="page-actions mt-4">
+        <a href="{% url 'course_create' %}" class="btn-primary">Создать курс</a>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}
 {% endblock %}

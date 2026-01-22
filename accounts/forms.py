@@ -13,6 +13,7 @@ class SignupForm(UserCreationForm):
         self.existing_user = None
         allowed_role_values = {
             User.Role.TEACHER,
+            User.Role.PROGRAM_LEADER,
             User.Role.DEAN,
             User.Role.UMU,
         }

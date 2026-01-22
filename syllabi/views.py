@@ -1,7 +1,9 @@
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 
 from accounts.decorators import role_required
@@ -10,6 +12,7 @@ from .forms import SyllabusForm, SyllabusDetailsForm
 from .models import Syllabus, SyllabusTopic, SyllabusRevision
 from .permissions import can_view_syllabus, shared_syllabi_queryset
 from .services import generate_syllabus_pdf
+from workflow.models import SyllabusAuditLog
 from workflow.services import change_status
 
 
@@ -52,22 +55,151 @@ def _build_literature_lists(topics):
 
 @login_required
 def syllabi_list(request):
-    if request.user.role in ["dean", "umu"]:
-        syllabi = Syllabus.objects.select_related("course", "creator")
+    if request.user.role in ["dean", "umu", "admin"] or request.user.is_superuser:
+        base_qs = Syllabus.objects.select_related("course", "creator")
+        allow_creator_filter = True
     else:
-        syllabi = Syllabus.objects.filter(creator=request.user).select_related("course", "creator")
-    return render(request, "syllabi/syllabi_list.html", {"syllabi": syllabi})
+        base_qs = Syllabus.objects.filter(creator=request.user).select_related("course", "creator")
+        allow_creator_filter = False
+
+    q = (request.GET.get("q") or "").strip()
+    status = (request.GET.get("status") or "").strip()
+    year = (request.GET.get("year") or "").strip()
+    course = (request.GET.get("course") or "").strip()
+    creator = (request.GET.get("creator") or "").strip()
+
+    syllabi = base_qs
+    if q:
+        syllabi = syllabi.filter(
+            Q(course__code__icontains=q)
+            | Q(course__title_ru__icontains=q)
+            | Q(course__title_kz__icontains=q)
+            | Q(course__title_en__icontains=q)
+            | Q(semester__icontains=q)
+            | Q(academic_year__icontains=q)
+            | Q(creator__first_name__icontains=q)
+            | Q(creator__last_name__icontains=q)
+            | Q(creator__username__icontains=q)
+        )
+    if status:
+        syllabi = syllabi.filter(status=status)
+    if year:
+        syllabi = syllabi.filter(academic_year=year)
+    if course:
+        syllabi = syllabi.filter(course_id=course)
+    if allow_creator_filter and creator:
+        syllabi = syllabi.filter(creator_id=creator)
+
+    year_options = (
+        base_qs.values_list("academic_year", flat=True)
+        .distinct()
+        .order_by("-academic_year")
+    )
+    course_options = (
+        base_qs.values("course_id", "course__code")
+        .distinct()
+        .order_by("course__code")
+    )
+    creator_options = []
+    if allow_creator_filter:
+        creator_ids = base_qs.values_list("creator_id", flat=True).distinct()
+        User = get_user_model()
+        creator_options = list(
+            User.objects.filter(id__in=creator_ids).order_by("last_name", "first_name", "username")
+        )
+
+    return render(
+        request,
+        "syllabi/syllabi_list.html",
+        {
+            "syllabi": syllabi,
+            "filters": {
+                "q": q,
+                "status": status,
+                "year": year,
+                "course": course,
+                "creator": creator,
+            },
+            "status_options": Syllabus.Status.choices,
+            "year_options": year_options,
+            "course_options": course_options,
+            "creator_options": creator_options,
+            "allow_creator_filter": allow_creator_filter,
+        },
+    )
 
 
 @login_required
-@role_required("teacher")
+@role_required("teacher", "program_leader")
 def shared_syllabi_list(request):
-    syllabi = shared_syllabi_queryset(request.user).order_by("-updated_at")
-    return render(request, "syllabi/shared_syllabi_list.html", {"syllabi": syllabi})
+    base_qs = shared_syllabi_queryset(request.user).order_by("-updated_at")
+
+    q = (request.GET.get("q") or "").strip()
+    status = (request.GET.get("status") or "").strip()
+    year = (request.GET.get("year") or "").strip()
+    course = (request.GET.get("course") or "").strip()
+    creator = (request.GET.get("creator") or "").strip()
+
+    syllabi = base_qs
+    if q:
+        syllabi = syllabi.filter(
+            Q(course__code__icontains=q)
+            | Q(course__title_ru__icontains=q)
+            | Q(course__title_kz__icontains=q)
+            | Q(course__title_en__icontains=q)
+            | Q(semester__icontains=q)
+            | Q(academic_year__icontains=q)
+            | Q(creator__first_name__icontains=q)
+            | Q(creator__last_name__icontains=q)
+            | Q(creator__username__icontains=q)
+        )
+    if status:
+        syllabi = syllabi.filter(status=status)
+    if year:
+        syllabi = syllabi.filter(academic_year=year)
+    if course:
+        syllabi = syllabi.filter(course_id=course)
+    if creator:
+        syllabi = syllabi.filter(creator_id=creator)
+
+    year_options = (
+        base_qs.values_list("academic_year", flat=True)
+        .distinct()
+        .order_by("-academic_year")
+    )
+    course_options = (
+        base_qs.values("course_id", "course__code")
+        .distinct()
+        .order_by("course__code")
+    )
+    creator_ids = base_qs.values_list("creator_id", flat=True).distinct()
+    User = get_user_model()
+    creator_options = list(
+        User.objects.filter(id__in=creator_ids).order_by("last_name", "first_name", "username")
+    )
+
+    return render(
+        request,
+        "syllabi/shared_syllabi_list.html",
+        {
+            "syllabi": syllabi,
+            "filters": {
+                "q": q,
+                "status": status,
+                "year": year,
+                "course": course,
+                "creator": creator,
+            },
+            "status_options": Syllabus.Status.choices,
+            "year_options": year_options,
+            "course_options": course_options,
+            "creator_options": creator_options,
+        },
+    )
 
 
 @login_required
-@role_required("teacher")
+@role_required("teacher", "program_leader")
 def syllabus_create(request):
     ensure_default_courses(request.user)
     if request.method == "POST":
@@ -78,6 +210,7 @@ def syllabus_create(request):
             syllabus.save()
             copy_from = form.cleaned_data.get("copy_from")
             prefill_topics = form.cleaned_data.get("prefill_topics")
+            topics_created = False
             if copy_from:
                 source_topics = (
                     copy_from.syllabus_topics.select_related("topic").order_by("week_number")
@@ -100,6 +233,7 @@ def syllabus_create(request):
                         for st in source_topics
                     ]
                 )
+                topics_created = True
             elif prefill_topics:
                 course_topics = (
                     syllabus.course.topics.filter(is_active=True)
@@ -116,6 +250,15 @@ def syllabus_create(request):
                         for index, topic in enumerate(course_topics, start=1)
                     ]
                 )
+                topics_created = True
+            if topics_created:
+                return redirect("syllabus_edit_topics", pk=syllabus.pk)
+            if syllabus.pdf_file:
+                messages.info(
+                    request,
+                    "Темы можно добавить позже. Сейчас можно отредактировать детали или отправить PDF на согласование.",
+                )
+                return redirect("syllabus_detail", pk=syllabus.pk)
             return redirect("syllabus_edit_topics", pk=syllabus.pk)
     else:
         form = SyllabusForm(user=request.user)
@@ -137,16 +280,18 @@ def syllabus_detail(request, pk):
     is_frozen = syllabus.status == Syllabus.Status.APPROVED_UMU
     is_creator = request.user == syllabus.creator
     role = request.user.role
-    is_dean = role == "dean"
-    is_umu = role == "umu"
+    is_admin_like = request.user.is_admin_like or request.user.is_superuser
+    is_dean = role == "dean" or is_admin_like
+    is_umu = role == "umu" or is_admin_like
     is_teacher_like = request.user.is_teacher_like
 
-    can_edit_topics = not is_frozen and is_creator
-    topics = (
+    can_edit_topics = not is_frozen and is_creator and is_teacher_like
+    topics = list(
         syllabus.syllabus_topics.select_related("topic")
         .prefetch_related("topic__literature", "topic__questions")
         .order_by("week_number")
     )
+    has_topics = bool(topics)
     derived_main_literature, derived_additional_literature = _build_literature_lists(topics)
     can_submit_dean = (
         is_creator
@@ -169,8 +314,8 @@ def syllabus_detail(request, pk):
         and not is_creator
     )
     can_reject_umu = can_approve_umu
-    can_upload = (is_creator and not is_frozen) or (is_umu and is_frozen)
-    can_share = is_creator
+    can_upload = (is_creator and not is_frozen and is_teacher_like) or (is_umu and is_frozen)
+    can_share = is_creator and is_teacher_like
 
     return render(
         request,
@@ -178,6 +323,7 @@ def syllabus_detail(request, pk):
         {
             "syllabus": syllabus,
             "topics": topics,
+            "has_topics": has_topics,
             "is_frozen": is_frozen,
             "can_edit_topics": can_edit_topics,
             "can_submit_dean": can_submit_dean,
@@ -199,7 +345,7 @@ def syllabus_detail(request, pk):
 
 
 @login_required
-@role_required("teacher")
+@role_required("teacher", "program_leader")
 def syllabus_edit_topics(request, pk):
     syllabus = get_object_or_404(Syllabus, pk=pk, creator=request.user)
     if syllabus.status == Syllabus.Status.APPROVED_UMU:
@@ -254,6 +400,28 @@ def syllabus_edit_topics(request, pk):
             )
 
         if not entries:
+            if syllabus.pdf_file:
+                with transaction.atomic():
+                    SyllabusTopic.objects.filter(syllabus=syllabus).delete()
+                    syllabus.version_number += 1
+                    syllabus.save()
+                    SyllabusRevision.objects.create(
+                        syllabus=syllabus,
+                        changed_by=request.user,
+                        version_number=syllabus.version_number,
+                        note="Темы очищены, используется PDF",
+                    )
+                    SyllabusAuditLog.objects.create(
+                        syllabus=syllabus,
+                        actor=request.user,
+                        action=SyllabusAuditLog.Action.TOPICS_CLEARED,
+                        message="Темы очищены, используется PDF",
+                    )
+                messages.info(
+                    request,
+                    "Темы не выбраны. Вы можете работать только с PDF.",
+                )
+                return redirect("syllabus_detail", pk=syllabus.pk)
             messages.error(request, "Выберите хотя бы одну тему для силлабуса.")
             return redirect("syllabus_edit_topics", pk=syllabus.pk)
 
@@ -293,6 +461,20 @@ def syllabus_edit_topics(request, pk):
                 version_number=syllabus.version_number,
                 note="Обновлены темы и недели",
             )
+            week_numbers = [
+                entry["week_number"] for entry in entries if entry.get("week_number")
+            ]
+            metadata = {"topics_count": len(entries)}
+            if week_numbers:
+                metadata["weeks_min"] = min(week_numbers)
+                metadata["weeks_max"] = max(week_numbers)
+            SyllabusAuditLog.objects.create(
+                syllabus=syllabus,
+                actor=request.user,
+                action=SyllabusAuditLog.Action.TOPICS_UPDATED,
+                metadata=metadata,
+                message="Обновлена структура тем и недель",
+            )
 
         return redirect("syllabus_detail", pk=syllabus.pk)
 
@@ -327,7 +509,7 @@ def syllabus_edit_topics(request, pk):
 
 
 @login_required
-@role_required("teacher")
+@role_required("teacher", "program_leader")
 def syllabus_edit_details(request, pk):
     syllabus = get_object_or_404(Syllabus, pk=pk, creator=request.user)
 
@@ -338,6 +520,7 @@ def syllabus_edit_details(request, pk):
     if request.method == "POST":
         form = SyllabusDetailsForm(request.POST, instance=syllabus)
         if form.is_valid():
+            changed_fields = list(form.changed_data)
             syllabus = form.save(commit=False)
             syllabus.version_number += 1
             syllabus.save()
@@ -347,6 +530,14 @@ def syllabus_edit_details(request, pk):
                 version_number=syllabus.version_number,
                 note="Обновлены основные данные",
             )
+            if changed_fields:
+                SyllabusAuditLog.objects.create(
+                    syllabus=syllabus,
+                    actor=request.user,
+                    action=SyllabusAuditLog.Action.DETAILS_UPDATED,
+                    metadata={"fields": changed_fields},
+                    message="Обновлены разделы силлабуса",
+                )
             messages.success(request, "Данные силлабуса обновлены.")
             return redirect("syllabus_detail", pk=syllabus.pk)
     else:
@@ -372,6 +563,8 @@ def syllabus_pdf(request, pk):
     syllabus = get_object_or_404(Syllabus, pk=pk)
     if not _can_view_syllabus(request.user, syllabus):
         raise PermissionDenied("Нет доступа к этому силлабусу.")
+    if not syllabus.syllabus_topics.exists() and syllabus.pdf_file:
+        return redirect(syllabus.pdf_file.url)
     return generate_syllabus_pdf(syllabus)
 
 
@@ -394,11 +587,12 @@ def syllabus_upload_file(request, pk):
     if request.method != "POST":
         return redirect("syllabus_detail", pk=pk)
 
-    can_upload = (
-        request.user == syllabus.creator and syllabus.status != Syllabus.Status.APPROVED_UMU
-    ) or (
-        request.user.role == "umu" and syllabus.status == Syllabus.Status.APPROVED_UMU
-    )
+    is_admin_like = request.user.is_admin_like or request.user.is_superuser
+    is_umu = request.user.role == "umu" or is_admin_like
+    is_teacher_like = request.user.is_teacher_like
+    is_creator = request.user == syllabus.creator
+    is_frozen = syllabus.status == Syllabus.Status.APPROVED_UMU
+    can_upload = (is_creator and not is_frozen and is_teacher_like) or (is_umu and is_frozen)
     if not can_upload:
         raise PermissionDenied("У вас нет прав на загрузку файла для этого силлабуса.")
 
@@ -413,12 +607,19 @@ def syllabus_upload_file(request, pk):
             version_number=syllabus.version_number,
             note="Загружен PDF",
         )
+        SyllabusAuditLog.objects.create(
+            syllabus=syllabus,
+            actor=request.user,
+            action=SyllabusAuditLog.Action.PDF_UPLOADED,
+            metadata={"filename": uploaded.name},
+            message="Загружен PDF",
+        )
 
     return redirect("syllabus_detail", pk=pk)
 
 
 @login_required
-@role_required("teacher")
+@role_required("teacher", "program_leader")
 def syllabus_toggle_share(request, pk):
     syllabus = get_object_or_404(Syllabus, pk=pk)
     if request.user != syllabus.creator:

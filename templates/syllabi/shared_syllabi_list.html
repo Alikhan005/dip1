@@ -9,6 +9,65 @@
   <a href="{% url 'syllabi_list' %}" class="btn-secondary">Мои силлабусы</a>
 </div>
 
+<form method="get" class="card p-4 mb-6">
+  <div class="grid gap-4 md:grid-cols-4">
+    <div>
+      <label for="filter-q">Поиск</label>
+      <input
+        id="filter-q"
+        type="text"
+        name="q"
+        value="{{ filters.q }}"
+        placeholder="Курс, код, автор, семестр"
+      >
+    </div>
+    <div>
+      <label for="filter-status">Статус</label>
+      <select id="filter-status" name="status">
+        <option value="">Все статусы</option>
+        {% for value, label in status_options %}
+          <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="filter-year">Учебный год</label>
+      <select id="filter-year" name="year">
+        <option value="">Все годы</option>
+        {% for item in year_options %}
+          <option value="{{ item }}" {% if filters.year == item %}selected{% endif %}>{{ item }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="filter-course">Курс</label>
+      <select id="filter-course" name="course">
+        <option value="">Все курсы</option>
+        {% for item in course_options %}
+          <option value="{{ item.course_id }}" {% if filters.course == item.course_id|stringformat:"s" %}selected{% endif %}>
+            {{ item.course__code }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="md:col-span-2">
+      <label for="filter-creator">Автор</label>
+      <select id="filter-creator" name="creator">
+        <option value="">Все авторы</option>
+        {% for creator in creator_options %}
+          <option value="{{ creator.id }}" {% if filters.creator == creator.id|stringformat:"s" %}selected{% endif %}>
+            {{ creator.get_full_name|default:creator.username }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <div class="flex flex-wrap gap-2 mt-4">
+    <button class="btn-primary" type="submit">Применить</button>
+    <a href="{% url 'shared_syllabi_list' %}" class="btn-secondary">Сбросить</a>
+  </div>
+</form>
+
 <table class="table">
   <thead>
     <tr class="border-b">

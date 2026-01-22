@@ -1,81 +1,128 @@
 {% extends "base.html" %}
 {% block title %}Редактирование тем{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-semibold mb-2">
-  Редактирование тем, {{ syllabus.course.code }} {{ syllabus.semester }}
-</h1>
-<p class="text-sm text-slate-600 mb-4">
-  Отметьте нужные темы, задайте порядок, недели и часы. Если номер недели не указан,
-  система проставит его автоматически.
-</p>
+<div class="page-header">
+  <div>
+    <div class="page-kicker">Шаг 2 из 3</div>
+    <h1 class="page-title">Структура по темам — {{ syllabus.course.code }} {{ syllabus.semester }}</h1>
+    <p class="page-subtitle">
+      Отметьте темы, которые войдут в силлабус, и при необходимости измените недели, часы или названия.
+      Если поле недели пустое, система выставит его автоматически.
+      {% if syllabus.pdf_file %}
+        Если вы работаете только с PDF, этот шаг можно пропустить.
+      {% endif %}
+    </p>
+    <div class="stepper mt-3">
+      <div class="stepper__item is-done">
+        <span class="stepper__badge">1</span>
+        <span>Карточка силлабуса</span>
+      </div>
+      <div class="stepper__item is-active">
+        <span class="stepper__badge">2</span>
+        <span>Темы и недели</span>
+      </div>
+      <div class="stepper__item">
+        <span class="stepper__badge">3</span>
+        <span>Детали и отправка</span>
+      </div>
+    </div>
+  </div>
+</div>
 
-<form method="post">
+<div class="callout mb-4">
+  <div class="callout__badge">i</div>
+  <div class="callout__text">
+    Сначала отметьте темы, затем задайте период (например, 1–2) и часы. Поля «Литература» и «Оценивание»
+    можно оставить пустыми — будут использованы данные темы.
+    {% if syllabus.pdf_file %}
+      PDF уже загружен, поэтому темы здесь опциональны.
+    {% endif %}
+  </div>
+</div>
+
+<form method="post" class="space-y-4">
   {% csrf_token %}
-  <table class="table">
-    <thead>
-      <tr class="border-b">
-        <th class="p-2"></th>
-        <th class="p-2 text-left">Неделя</th>
-        <th class="p-2 text-left">Период</th>
-        <th class="p-2 text-left">Тема / модуль</th>
-        <th class="p-2 text-left">Часы</th>
-        <th class="p-2 text-left">Название и описание</th>
-      </tr>
-    </thead>
-    <tbody>
-    {% for row in topics %}
-      <tr class="border-b">
-        <td class="p-2">
-          <input type="checkbox" name="include_{{ row.topic.id }}" {% if row.included %}checked{% endif %}>
-        </td>
-        <td class="p-2">
-          <input type="number" min="1" name="week_{{ row.topic.id }}" value="{{ row.week_number|default_if_none:'' }}"
-                 class="border rounded px-2 py-1 w-20">
-        </td>
-        <td class="p-2">
-          <input type="text" name="week_label_{{ row.topic.id }}" value="{{ row.week_label }}"
-                 class="border rounded px-2 py-1 w-20" placeholder="1-2">
-        </td>
-        <td class="p-2">
-          <div class="font-medium">{{ row.display_title }}</div>
-        </td>
-        <td class="p-2">
-          <input type="number" min="1" name="hours_{{ row.topic.id }}" value="{{ row.custom_hours|default_if_none:'' }}"
-                 class="border rounded px-2 py-1 w-20">
-          <span class="text-gray-500 text-sm ml-1">по умолчанию {{ row.topic.default_hours }}</span>
-        </td>
-        <td class="p-2">
-          <input type="text" name="title_{{ row.topic.id }}" value="{{ row.custom_title }}"
-                 class="border rounded px-2 py-1 w-full">
-        </td>
-      </tr>
-      <tr class="border-b bg-slate-50/60">
-        <td colspan="6" class="p-3">
-          <div class="grid gap-3 md:grid-cols-2">
-            <div>
-              <label class="text-sm text-slate-700">Задания</label>
-              <textarea name="tasks_{{ row.topic.id }}" rows="3" class="border rounded px-2 py-1 w-full">{{ row.tasks }}</textarea>
-            </div>
-            <div>
-              <label class="text-sm text-slate-700">Результаты обучения</label>
-              <textarea name="outcomes_{{ row.topic.id }}" rows="3" class="border rounded px-2 py-1 w-full">{{ row.learning_outcomes }}</textarea>
-            </div>
-            <div>
-              <label class="text-sm text-slate-700">Литература</label>
-              <textarea name="literature_{{ row.topic.id }}" rows="3" class="border rounded px-2 py-1 w-full">{{ row.literature_notes }}</textarea>
-              <p class="text-xs text-slate-500 mt-1">Если пусто, используется литература темы.</p>
-            </div>
-            <div>
-              <label class="text-sm text-slate-700">Структура оценок</label>
-              <textarea name="assessment_{{ row.topic.id }}" rows="3" class="border rounded px-2 py-1 w-full">{{ row.assessment }}</textarea>
-            </div>
-          </div>
-        </td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
+  <div class="action-bar">
+    <div class="action-bar__hint">
+      Сохраните структуру, чтобы перейти к деталям силлабуса.
+      {% if syllabus.pdf_file %}Если работаете только с PDF, можно перейти дальше без тем.{% endif %}
+    </div>
+    <div class="page-actions">
+      <a href="{% url 'syllabus_edit_details' syllabus.pk %}" class="btn-secondary">К деталям</a>
+      <button class="btn-primary" type="submit">Сохранить структуру</button>
+    </div>
+  </div>
 
-  <button class="mt-4 btn-primary">Сохранить структуру</button>
+  <div class="card p-4 overflow-x-auto">
+    <table class="table">
+      <thead>
+        <tr class="border-b">
+          <th class="p-2"></th>
+          <th class="p-2 text-left">Неделя</th>
+          <th class="p-2 text-left">Период</th>
+          <th class="p-2 text-left">Тема / модуль</th>
+          <th class="p-2 text-left">Часы</th>
+          <th class="p-2 text-left">Название и описание</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for row in topics %}
+        <tr class="border-b">
+          <td class="p-2">
+            <input type="checkbox" name="include_{{ row.topic.id }}" {% if row.included %}checked{% endif %}>
+          </td>
+          <td class="p-2">
+            <input type="number" min="1" name="week_{{ row.topic.id }}" value="{{ row.week_number|default_if_none:'' }}"
+                   class="border rounded px-2 py-1 w-20">
+          </td>
+          <td class="p-2">
+            <input type="text" name="week_label_{{ row.topic.id }}" value="{{ row.week_label }}"
+                   class="border rounded px-2 py-1 w-20" placeholder="1-2">
+          </td>
+          <td class="p-2">
+            <div class="font-medium">{{ row.display_title }}</div>
+          </td>
+          <td class="p-2">
+            <input type="number" min="1" name="hours_{{ row.topic.id }}" value="{{ row.custom_hours|default_if_none:'' }}"
+                   class="border rounded px-2 py-1 w-20">
+            <span class="text-gray-500 text-sm ml-1">по умолчанию {{ row.topic.default_hours }}</span>
+          </td>
+          <td class="p-2">
+            <input type="text" name="title_{{ row.topic.id }}" value="{{ row.custom_title }}"
+                   class="border rounded px-2 py-1 w-full">
+          </td>
+        </tr>
+        <tr class="border-b bg-slate-50/60">
+          <td colspan="6" class="p-3">
+            <div class="grid gap-3 md:grid-cols-2">
+              <div>
+                <label class="text-sm text-slate-700">Задания</label>
+                <textarea name="tasks_{{ row.topic.id }}" rows="3" class="border rounded px-2 py-1 w-full">{{ row.tasks }}</textarea>
+              </div>
+              <div>
+                <label class="text-sm text-slate-700">Результаты обучения</label>
+                <textarea name="outcomes_{{ row.topic.id }}" rows="3" class="border rounded px-2 py-1 w-full">{{ row.learning_outcomes }}</textarea>
+              </div>
+              <div>
+                <label class="text-sm text-slate-700">Литература</label>
+                <textarea name="literature_{{ row.topic.id }}" rows="3" class="border rounded px-2 py-1 w-full">{{ row.literature_notes }}</textarea>
+                <p class="text-xs text-slate-500 mt-1">Если пусто, используется литература темы.</p>
+              </div>
+              <div>
+                <label class="text-sm text-slate-700">Структура оценок</label>
+                <textarea name="assessment_{{ row.topic.id }}" rows="3" class="border rounded px-2 py-1 w-full">{{ row.assessment }}</textarea>
+              </div>
+            </div>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="page-actions">
+    <a href="{% url 'syllabus_edit_details' syllabus.pk %}" class="btn-secondary">К деталям</a>
+    <button class="btn-primary" type="submit">Сохранить структуру</button>
+  </div>
 </form>
 {% endblock %}

@@ -31,7 +31,7 @@ class User(AbstractUser):
     class Role(models.TextChoices):
         TEACHER = "teacher", "Преподаватель"
         PROGRAM_LEADER = "program_leader", "Руководитель программы"
-        DEAN = "dean", "Декан"
+        DEAN = "dean", "Деканат"
         UMU = "umu", "УМУ"
         ADMIN = "admin", "Админ"
 
@@ -46,20 +46,24 @@ class User(AbstractUser):
     email_verified = models.BooleanField(default=False)
 
     @property
+    def is_admin_like(self) -> bool:
+        return self.role == self.Role.ADMIN or self.is_superuser
+
+    @property
     def is_teacher_like(self) -> bool:
-        return self.role == self.Role.TEACHER
+        return self.role in {self.Role.TEACHER, self.Role.PROGRAM_LEADER} or self.is_admin_like
 
     @property
     def can_edit_content(self) -> bool:
-        return self.role == self.Role.TEACHER
+        return self.is_teacher_like
 
     @property
     def can_view_courses(self) -> bool:
-        return self.role == self.Role.TEACHER
+        return self.is_teacher_like
 
     @property
     def can_view_shared_courses(self) -> bool:
-        return self.role == self.Role.TEACHER
+        return self.is_teacher_like
 
     def __str__(self):
         return self.get_full_name() or self.username

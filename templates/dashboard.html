@@ -142,7 +142,7 @@
   </div>
 {% endif %}
 
-{% if user.role == "dean" or user.role == "admin" %}
+{% if user.is_admin_like or user.role == "dean" %}
   <div class="card p-5">
     <h2 class="text-xl font-semibold mb-3">На согласовании у декана</h2>
     {% if pending_dean %}
@@ -157,7 +157,7 @@
             </div>
             <div class="flex flex-wrap gap-2">
               <a href="{% url 'syllabus_detail' syllabus.pk %}" class="btn-secondary">Открыть</a>
-              {% if user.role == "admin" or user.role == "dean" and syllabus.creator != user %}
+              {% if syllabus.creator != user %}
                 <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'approved_dean' %}" class="inline-flex items-center gap-2">
                   {% csrf_token %}
                   <input type="text" name="comment" placeholder="Комментарий" class="border rounded px-2 py-1 text-sm">
@@ -179,7 +179,7 @@
   </div>
 {% endif %}
 
-{% if user.role == "umu" or user.role == "admin" %}
+{% if user.is_admin_like or user.role == "umu" %}
   <div class="card p-5">
     <h2 class="text-xl font-semibold mb-3">На согласовании в УМУ</h2>
     {% if pending_umu %}
@@ -194,7 +194,7 @@
             </div>
             <div class="flex flex-wrap gap-2">
               <a href="{% url 'syllabus_detail' syllabus.pk %}" class="btn-secondary">Открыть</a>
-              {% if user.role == "admin" or user.role == "umu" and syllabus.creator != user %}
+              {% if syllabus.creator != user %}
                 <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'approved_umu' %}" class="inline-flex items-center gap-2">
                   {% csrf_token %}
                   <input type="text" name="comment" placeholder="Комментарий" class="border rounded px-2 py-1 text-sm">
