@@ -93,25 +93,6 @@
       </div>
     {% endif %}
   </div>
-
-  <div class="card p-5">
-    <h2 class="text-xl font-semibold mb-3">Мои заявки на согласование</h2>
-    {% if my_reviews %}
-      <div class="space-y-3">
-        {% for syllabus in my_reviews %}
-          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b pb-2">
-            <div>
-              <div class="font-medium">{{ syllabus.course.code }} {{ syllabus.semester }}</div>
-              <div class="text-sm text-slate-500">{{ syllabus.get_status_display }}</div>
-            </div>
-            <a href="{% url 'syllabus_detail' syllabus.pk %}" class="link">Открыть</a>
-          </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <p class="text-sm text-slate-500">Пока нет заявок на согласование.</p>
-    {% endif %}
-  </div>
 {% else %}
   <div class="dashboard-grid">
     <div class="card p-5 flex flex-col justify-between">
@@ -142,94 +123,160 @@
   </div>
 {% endif %}
 
-{% if user.is_admin_like or user.role == "dean" %}
-  <div class="card p-5">
-    <h2 class="text-xl font-semibold mb-3">На согласовании у декана</h2>
-    {% if pending_dean %}
-      <div class="space-y-3">
-        {% for syllabus in pending_dean %}
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b pb-2">
-            <div>
-              <div class="font-medium">{{ syllabus.course.code }} {{ syllabus.semester }}</div>
-              <div class="text-sm text-slate-500">
-                Автор: {{ syllabus.creator.get_full_name|default:syllabus.creator.username }}
-              </div>
-            </div>
-            <div class="flex flex-wrap gap-2">
-              <a href="{% url 'syllabus_detail' syllabus.pk %}" class="btn-secondary">Открыть</a>
-              {% if syllabus.creator != user %}
-                <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'approved_dean' %}" class="inline-flex items-center gap-2">
-                  {% csrf_token %}
-                  <input type="text" name="comment" placeholder="Комментарий" class="border rounded px-2 py-1 text-sm">
-                  <button class="btn-primary">Утвердить</button>
-                </form>
-                <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'rejected' %}" class="inline-flex items-center gap-2">
-                  {% csrf_token %}
-                  <input type="text" name="comment" placeholder="Причина отклонения" class="border rounded px-2 py-1 text-sm" required>
-                  <button class="btn-secondary">Отклонить</button>
-                </form>
-              {% endif %}
-            </div>
-          </div>
-        {% endfor %}
+  <div class="card p-5 approval-board">
+    <div class="approval-board__header">
+      <div>
+        <h2 class="text-xl font-semibold">Согласование</h2>
+        <p class="text-sm text-slate-600">Все статусы и решения по силлабусам собраны в одном месте.</p>
       </div>
-    {% else %}
-      <p class="text-sm text-slate-500">Нет заявок на согласовании.</p>
-    {% endif %}
-  </div>
-{% endif %}
+      <div class="status-legend">
+        <span class="status-pill status-pill--approved_umu">Утверждено</span>
+        <span class="status-pill status-pill--rejected">Отклонено</span>
+      </div>
+    </div>
 
-{% if user.is_admin_like or user.role == "umu" %}
-  <div class="card p-5">
-    <h2 class="text-xl font-semibold mb-3">На согласовании в УМУ</h2>
-    {% if pending_umu %}
-      <div class="space-y-3">
-        {% for syllabus in pending_umu %}
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b pb-2">
-            <div>
-              <div class="font-medium">{{ syllabus.course.code }} {{ syllabus.semester }}</div>
-              <div class="text-sm text-slate-500">
-                Автор: {{ syllabus.creator.get_full_name|default:syllabus.creator.username }}
-              </div>
-            </div>
-            <div class="flex flex-wrap gap-2">
-              <a href="{% url 'syllabus_detail' syllabus.pk %}" class="btn-secondary">Открыть</a>
-              {% if syllabus.creator != user %}
-                <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'approved_umu' %}" class="inline-flex items-center gap-2">
-                  {% csrf_token %}
-                  <input type="text" name="comment" placeholder="Комментарий" class="border rounded px-2 py-1 text-sm">
-                  <button class="btn-primary">Финально утвердить</button>
-                </form>
-                <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'rejected' %}" class="inline-flex items-center gap-2">
-                  {% csrf_token %}
-                  <input type="text" name="comment" placeholder="Причина отклонения" class="border rounded px-2 py-1 text-sm" required>
-                  <button class="btn-secondary">Отклонить</button>
-                </form>
-              {% endif %}
+    {% if my_reviews or pending_dean or pending_umu %}
+      <div class="approval-grid">
+        {% if my_reviews %}
+          <div class="approval-section">
+            <div class="approval-section__title">Мои заявки</div>
+            <div class="approval-list">
+              {% for syllabus in my_reviews %}
+                <div class="approval-item">
+                  <div>
+                    <div class="approval-item__title">{{ syllabus.course.code }} {{ syllabus.semester }}</div>
+                    <div class="approval-item__meta">{{ syllabus.course.display_title }}</div>
+                  </div>
+                  <span class="status-pill status-pill--{{ syllabus.status }}">{{ syllabus.get_status_display }}</span>
+                  <div class="approval-actions">
+                    <a href="{% url 'syllabus_detail' syllabus.pk %}" class="link">Открыть</a>
+                  </div>
+                </div>
+              {% endfor %}
             </div>
           </div>
-        {% endfor %}
+        {% endif %}
+
+        {% if pending_dean %}
+          <div class="approval-section">
+            <div class="approval-section__title">На согласовании у декана</div>
+            <div class="approval-list">
+              {% for syllabus in pending_dean %}
+                <div class="approval-item">
+                  <div>
+                    <div class="approval-item__title">{{ syllabus.course.code }} {{ syllabus.semester }}</div>
+                    <div class="approval-item__meta">
+                      Автор: {{ syllabus.creator.get_full_name|default:syllabus.creator.username }}
+                    </div>
+                  </div>
+                  <span class="status-pill status-pill--{{ syllabus.status }}">{{ syllabus.get_status_display }}</span>
+                  <div class="approval-actions">
+                    <a href="{% url 'syllabus_detail' syllabus.pk %}" class="btn-secondary">Открыть</a>
+                    {% if syllabus.creator != user %}
+                      <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'approved_dean' %}" class="approval-action-form">
+                        {% csrf_token %}
+                        <input type="text" name="comment" placeholder="Комментарий" class="approval-input">
+                        <button class="btn-primary">Утвердить</button>
+                      </form>
+                      <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'rejected' %}" class="approval-action-form">
+                        {% csrf_token %}
+                        <input type="text" name="comment" placeholder="Причина отклонения" class="approval-input" required>
+                        <button class="btn-secondary">Отклонить</button>
+                      </form>
+                    {% endif %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+
+        {% if pending_umu %}
+          <div class="approval-section">
+            <div class="approval-section__title">На согласовании в УМУ</div>
+            <div class="approval-list">
+              {% for syllabus in pending_umu %}
+                <div class="approval-item">
+                  <div>
+                    <div class="approval-item__title">{{ syllabus.course.code }} {{ syllabus.semester }}</div>
+                    <div class="approval-item__meta">
+                      Автор: {{ syllabus.creator.get_full_name|default:syllabus.creator.username }}
+                    </div>
+                  </div>
+                  <span class="status-pill status-pill--{{ syllabus.status }}">{{ syllabus.get_status_display }}</span>
+                  <div class="approval-actions">
+                    <a href="{% url 'syllabus_detail' syllabus.pk %}" class="btn-secondary">Открыть</a>
+                    {% if syllabus.creator != user %}
+                      <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'approved_umu' %}" class="approval-action-form">
+                        {% csrf_token %}
+                        <input type="text" name="comment" placeholder="Комментарий" class="approval-input">
+                        <button class="btn-primary">Финально утвердить</button>
+                      </form>
+                      <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'rejected' %}" class="approval-action-form">
+                        {% csrf_token %}
+                        <input type="text" name="comment" placeholder="Причина отклонения" class="approval-input" required>
+                        <button class="btn-secondary">Отклонить</button>
+                      </form>
+                    {% endif %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
       </div>
     {% else %}
-      <p class="text-sm text-slate-500">Нет заявок на согласовании.</p>
+      <p class="text-sm text-slate-500">Нет документов на согласовании.</p>
     {% endif %}
   </div>
-{% endif %}
   </div>
   <aside class="dashboard__aside">
     <div class="card p-5">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-lg font-semibold">Объявления</h2>
-        <span class="text-sm text-slate-500">Все</span>
+        <span class="badge">Декан / УМУ</span>
       </div>
-      <div class="space-y-3 text-sm text-slate-600">
-        <div class="rounded-lg border border-slate-200/70 bg-white/80 p-3">
+      {% if can_manage_announcements %}
+        <details class="announcement-compose">
+          <summary>Новая публикация</summary>
+          <form method="post" action="{% url 'announcement_create' %}" class="announcement-form">
+            {% csrf_token %}
+            {{ announcement_form.non_field_errors }}
+            <div class="announcement-field">
+              <label for="{{ announcement_form.title.id_for_label }}">Заголовок</label>
+              {{ announcement_form.title.errors }}
+              {{ announcement_form.title }}
+            </div>
+            <div class="announcement-field">
+              <label for="{{ announcement_form.body.id_for_label }}">Текст</label>
+              {{ announcement_form.body.errors }}
+              {{ announcement_form.body }}
+            </div>
+            <button class="btn-primary">Опубликовать</button>
+          </form>
+        </details>
+      {% endif %}
+
+      {% if announcements %}
+        <div class="announcement-list">
+          {% for item in announcements %}
+            <article class="announcement-item">
+              <div class="announcement-title">{{ item.title }}</div>
+              <div class="announcement-meta">
+                {{ item.created_at|date:"d.m.Y H:i" }}
+                {% if item.created_by %}
+                  • {{ item.created_by.get_full_name|default:item.created_by.username }}
+                {% endif %}
+              </div>
+              <div class="announcement-body">{{ item.body|linebreaksbr }}</div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="announcement-empty">
           Публикаций пока нет. Новые объявления появятся здесь.
         </div>
-        <div class="rounded-lg border border-slate-200/70 bg-white/80 p-3">
-          Следите за новостями кафедры и расписанием.
-        </div>
-      </div>
+      {% endif %}
     </div>
     <div class="card p-5">
       <div class="flex items-center justify-between mb-3">

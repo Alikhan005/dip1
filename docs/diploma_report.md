@@ -20,6 +20,7 @@
 - Workflow согласования: черновик → декан → УМУ.
 - Email-уведомления о смене статуса.
 - AI-проверка структуры (не генерация, а анализ полноты).
+- AI-перевод фрагментов на три языка (через помощник).
 
 ## 4. Архитектура
 Проект построен на Django (монолит) и разделен на приложения:
@@ -81,6 +82,7 @@ python manage.py runserver
 - DEFAULT_FROM_EMAIL, SERVER_EMAIL.
 - LLM_PROVIDER, LLM_API_KEY, LLM_API_URL, LLM_REMOTE_MODEL — удаленный AI.
 - LLM_MODEL_PATH, LLM_CTX, LLM_THREADS, LLM_BATCH — локальный AI.
+- LLM_TRANSLATION_TEXT_LIMIT, LLM_TRANSLATION_MAX_TOKENS — лимиты перевода.
 
 ## 10. Структура проекта (каталоги)
 - config/: настройки, urls, wsgi/asgi.

@@ -70,6 +70,8 @@ _PDF_GUIDELINES_LIMIT = _env_int("LLM_GUIDELINES_PDF_LIMIT", 1600)
 _PDF_GUIDELINES_PAGES = _env_int("LLM_GUIDELINES_PDF_PAGES", 2)
 _ASSISTANT_SYLLABUS_LIMIT = _env_int("LLM_ASSISTANT_SYLLABUS_LIMIT", 2500)
 _ASSISTANT_MAX_TOKENS = _env_int("LLM_ASSISTANT_MAX_TOKENS", 220)
+_TRANSLATION_TEXT_LIMIT = _env_int("LLM_TRANSLATION_TEXT_LIMIT", 1200)
+_TRANSLATION_MAX_TOKENS = _env_int("LLM_TRANSLATION_MAX_TOKENS", 400)
 
 _GREETING_CLEAN_RE = re.compile(r"[^\w\s\-]+", re.UNICODE)
 _FAST_GREETINGS = {
@@ -82,6 +84,20 @@ _FAST_GREETINGS = {
     "hello",
 }
 
+_TRANSLATION_KEYWORDS = (
+    "переведи",
+    "перевод",
+    "перевести",
+    "translate",
+    "translation",
+)
+
+_TRANSLATION_TARGETS = {
+    "ru": ("ru", "рус", "russian"),
+    "kz": ("kz", "каз", "қаз", "kazakh", "kaz"),
+    "en": ("en", "англ", "english"),
+}
+
 
 def _fast_reply(message: str) -> str | None:
     cleaned = _GREETING_CLEAN_RE.sub("", message).strip().lower()
@@ -91,6 +107,70 @@ def _fast_reply(message: str) -> str | None:
             "структурой силлабуса. Чем могу помочь?"
         )
     return None
+
+
+def _detect_translation_targets(text: str) -> list[str]:
+    lowered = text.lower()
+    if "3 языка" in lowered or "три языка" in lowered or "на три" in lowered or "на 3" in lowered:
+        return ["ru", "kz", "en"]
+
+    targets = []
+    for code, keywords in _TRANSLATION_TARGETS.items():
+        if any(keyword in lowered for keyword in keywords):
+            targets.append(code)
+
+    return targets or ["ru", "kz", "en"]
+
+
+def _extract_translation_text(message: str) -> str:
+    for open_char, close_char in (("«", "»"), ('"', '"'), ("'", "'")):
+        start = message.find(open_char)
+        if start != -1:
+            end = message.find(close_char, start + 1)
+            if end != -1:
+                return message[start + 1 : end].strip()
+
+    for separator in (":", "—", "–", "\n"):
+        if separator in message:
+            return message.split(separator, 1)[1].strip()
+
+    return ""
+
+
+def _translation_request(message: str) -> dict | None:
+    lowered = message.lower()
+    if not any(keyword in lowered for keyword in _TRANSLATION_KEYWORDS):
+        return None
+    return {
+        "text": _extract_translation_text(message),
+        "targets": _detect_translation_targets(lowered),
+    }
+
+
+def _build_translation_prompt(text: str, targets: list[str]) -> str:
+    language_labels = {"ru": "Russian", "kz": "Kazakh", "en": "English"}
+    ordered_targets = [code for code in ("ru", "kz", "en") if code in targets]
+    target_list = ", ".join(language_labels[code] for code in ordered_targets)
+    output_format = "\n".join(f"{code.upper()}: ..." for code in ordered_targets)
+
+    system = (
+        "You are a professional translator for university syllabi. "
+        "Translate the user text into the requested languages. "
+        "Preserve meaning, tone, and formatting. Do not add new content."
+    )
+
+    return (
+        "<|im_start|>system\n"
+        f"{system}\n"
+        "<|im_end|>\n"
+        "<|im_start|>user\n"
+        f"Target languages: {target_list}.\n\n"
+        "Return ONLY the translations in the format below:\n"
+        f"{output_format}\n\n"
+        f"Text:\n{text}\n"
+        "<|im_end|>\n"
+        "<|im_start|>assistant\n"
+    )
 
 
 def _contains_any(text: str, keywords: tuple[str, ...]) -> bool:
@@ -201,6 +281,13 @@ def _rules_only_answer(message: str) -> str:
         return (
             "Напишите вопрос по силлабусу. Например: "
             "\"Сколько недель?\", \"Предложи темы\", \"Подбери литературу\"."
+        )
+
+    if any(keyword in text for keyword in _TRANSLATION_KEYWORDS):
+        return (
+            "AI-перевод доступен при включенном LLM. "
+            "Пришлите текст в кавычках или после двоеточия, например: "
+            "\"Переведи на 3 языка: ...\"."
         )
 
     if "силлабус" in text and any(
@@ -389,6 +476,51 @@ def answer_syllabus_question(message: str, syllabus=None) -> tuple[str, str]:
     app_help = _app_help_answer(message)
     if app_help:
         return app_help, "rules-only"
+
+    translation = _translation_request(message)
+    if translation is not None:
+        text = (translation.get("text") or "").strip()
+        targets = translation.get("targets") or ["ru", "kz", "en"]
+        if not text:
+            return (
+                "Пришлите текст для перевода в кавычках или после двоеточия, "
+                'например: "Переведи на 3 языка: ...".',
+                "rules-only",
+            )
+        if len(text) > _TRANSLATION_TEXT_LIMIT:
+            return (
+                "Текст слишком длинный для перевода. Отправьте более короткий фрагмент.",
+                "rules-only",
+            )
+        if _is_fast_mode(mode):
+            return (
+                "AI-перевод доступен в режиме auto/llm. Включите LLM и повторите запрос.",
+                "rules-only",
+            )
+
+        prompt = _build_translation_prompt(text, targets)
+        try:
+            answer = generate_text(
+                prompt,
+                max_tokens=_TRANSLATION_MAX_TOKENS,
+                temperature=0.2,
+                top_p=0.9,
+            )
+            model_name = get_model_name()
+        except Exception as exc:
+            if mode == "auto" or _should_fallback(exc):
+                return (
+                    "AI-перевод недоступен. Проверьте настройки LLM и повторите запрос.",
+                    "rules-only",
+                )
+            return f"AI недоступен: {exc}", "rules-only"
+
+        if not answer:
+            return (
+                "Не удалось получить перевод. Попробуйте еще раз или сократите текст.",
+                "rules-only",
+            )
+        return answer.strip(), model_name
 
     if _is_fast_mode(mode):
         return _rules_only_answer(message), "rules-only"

@@ -20,7 +20,7 @@ from accounts.views import (
     resend_email_code,
     verify_email,
 )
-from .views import dashboard
+from .views import create_announcement, dashboard
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -72,6 +72,7 @@ urlpatterns = [
     ),
     path("accounts/", include("django.contrib.auth.urls")),
     path("dashboard/", dashboard, name="dashboard"),
+    path("dashboard/announcements/new/", create_announcement, name="announcement_create"),
     path("", include("core.urls")),
     path("", include("catalog.urls")),
     path("syllabi/", include("syllabi.urls")),
