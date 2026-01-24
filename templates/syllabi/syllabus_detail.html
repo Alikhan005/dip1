@@ -47,6 +47,66 @@
   </div>
 </div>
 
+<div class="card p-5 mb-4 status-rail">
+  <div class="status-rail__header">
+    <div>
+      <div class="page-kicker">Согласование</div>
+      <div class="status-rail__title">Путь документа</div>
+      <div class="text-sm text-slate-600">Текущий статус и следующие шаги.</div>
+    </div>
+    <span class="status-pill status-pill--{{ syllabus.status }}">{{ syllabus.get_status_display }}</span>
+  </div>
+  <div class="status-steps">
+    <div class="status-step{% if syllabus.status == 'draft' or syllabus.status == 'rejected' %} is-active{% elif syllabus.status == 'submitted_dean' or syllabus.status == 'approved_dean' or syllabus.status == 'submitted_umu' or syllabus.status == 'approved_umu' %} is-done{% endif %}">
+      <div class="status-step__badge">1</div>
+      <div class="status-step__label">Черновик</div>
+      <div class="status-step__desc">Заполните темы, часы и основные разделы.</div>
+    </div>
+    <div class="status-step{% if syllabus.status == 'submitted_dean' %} is-active{% elif syllabus.status == 'rejected' %} is-blocked{% elif syllabus.status == 'approved_dean' or syllabus.status == 'submitted_umu' or syllabus.status == 'approved_umu' %} is-done{% endif %}">
+      <div class="status-step__badge">2</div>
+      <div class="status-step__label">Декан</div>
+      <div class="status-step__desc">Проверка структуры и нагрузки.</div>
+    </div>
+    <div class="status-step{% if syllabus.status == 'submitted_umu' %} is-active{% elif syllabus.status == 'approved_umu' %} is-done{% endif %}">
+      <div class="status-step__badge">3</div>
+      <div class="status-step__label">УМУ</div>
+      <div class="status-step__desc">Финальная проверка и подпись.</div>
+    </div>
+    <div class="status-step{% if syllabus.status == 'approved_umu' %} is-active{% endif %}">
+      <div class="status-step__badge">4</div>
+      <div class="status-step__label">Финал</div>
+      <div class="status-step__desc">Силлабус утвержден и фиксируется в системе.</div>
+    </div>
+  </div>
+  <div class="status-checklist">
+    {% if has_topics %}
+      <div class="status-check is-done">Темы и недели заполнены</div>
+    {% elif syllabus.pdf_file %}
+      <div class="status-check is-optional">Темы можно заполнить позже (сейчас работает PDF)</div>
+    {% else %}
+      <div class="status-check is-missing">Темы и недели пока не заполнены</div>
+    {% endif %}
+    {% if main_literature_list or additional_literature_list %}
+      <div class="status-check is-done">Литература заполнена</div>
+    {% else %}
+      <div class="status-check is-missing">Литература пока не заполнена</div>
+    {% endif %}
+    {% if syllabus.pdf_file %}
+      <div class="status-check is-done">PDF прикреплен</div>
+    {% else %}
+      <div class="status-check is-optional">PDF не обязателен, но удобен для согласования</div>
+    {% endif %}
+    {% if has_topics %}
+      <div class="status-check is-done">AI-проверка доступна</div>
+    {% else %}
+      <div class="status-check is-optional">AI-проверка откроется после заполнения тем</div>
+    {% endif %}
+  </div>
+  {% if syllabus.status == "rejected" %}
+    <div class="status-rail__note">Силлабус отклонен. Проверьте комментарии в журнале и исправьте замечания.</div>
+  {% endif %}
+</div>
+
 <div class="callout mb-4">
   <div class="callout__badge">!</div>
   <div class="callout__text">

@@ -79,6 +79,19 @@
   </div>
 </form>
 
+<div class="action-bar mb-6">
+  <div>
+    <div class="page-kicker">Результаты</div>
+    <div class="font-semibold">Найдено: {{ syllabi|length }}</div>
+    <div class="action-bar__hint">Подсказка: фильтры работают по курсу, семестру, автору и статусу.</div>
+  </div>
+  <div class="status-legend">
+    {% for value, label in status_options %}
+      <span class="status-pill status-pill--{{ value }}">{{ label }}</span>
+    {% endfor %}
+  </div>
+</div>
+
 <div class="card p-5 mb-6">
   <div class="guide-grid">
     <div class="guide-card">
@@ -121,7 +134,9 @@
       <tr class="border-b align-middle">
         <td class="p-2">{{ syllabus.course.code }}</td>
         <td class="p-2">{{ syllabus.semester }} / {{ syllabus.academic_year }}</td>
-        <td class="p-2">{{ syllabus.get_status_display }}</td>
+        <td class="p-2">
+          <span class="status-pill status-pill--{{ syllabus.status }}">{{ syllabus.get_status_display }}</span>
+        </td>
         <td class="p-2 text-sm">
           {% if syllabus.is_shared %}
             <span class="badge badge--shared">Общий</span>

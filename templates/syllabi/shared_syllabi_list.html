@@ -74,6 +74,7 @@
       <th class="p-2 text-left">Код</th>
       <th class="p-2 text-left">Семестр</th>
       <th class="p-2 text-left">Автор</th>
+      <th class="p-2 text-left">Статус</th>
       <th class="p-2 text-left">PDF</th>
       <th class="p-2 text-left"></th>
     </tr>
@@ -85,6 +86,9 @@
       <td class="p-2">{{ syllabus.semester }} / {{ syllabus.academic_year }}</td>
       <td class="p-2 text-sm">
         {{ syllabus.creator.get_full_name|default:syllabus.creator.username }}
+      </td>
+      <td class="p-2">
+        <span class="status-pill status-pill--{{ syllabus.status }}">{{ syllabus.get_status_display }}</span>
       </td>
       <td class="p-2 text-sm">
         {% if syllabus.pdf_file %}
@@ -99,7 +103,7 @@
     </tr>
   {% empty %}
     <tr>
-      <td colspan="5" class="p-4">Общих силлабусов по вашим предметам пока нет.</td>
+      <td colspan="6" class="p-4">Общих силлабусов по вашим предметам пока нет.</td>
     </tr>
   {% endfor %}
   </tbody>
