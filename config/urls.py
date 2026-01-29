@@ -11,7 +11,7 @@ admin.site.site_header = "AlmaU Syllabus Copy Admin"
 admin.site.site_title = "AlmaU Syllabus Copy"
 admin.site.index_title = "Administration"
 
-# Убрали verify_email и resend_email_code из импортов
+# ИСПРАВЛЕНИЕ: Убрали verify_email и resend_email_code
 from accounts.views import (
     LoginGateView,
     LogoutAllowGetView,
@@ -24,7 +24,7 @@ from .views import create_announcement, dashboard
 urlpatterns = [
     path("admin/", admin.site.urls),
     
-    # Главная страница - перенаправляет на логин
+    # Главная страница -> Логин
     path(
         "",
         LoginGateView.as_view(
@@ -46,7 +46,7 @@ urlpatterns = [
     path("accounts/logout/", LogoutAllowGetView.as_view(), name="logout"),
     path("accounts/signup/", SignupView.as_view(), name="signup"),
     
-    # УДАЛЕНО: Маршруты подтверждения почты (verify_email, resend_email_code)
+    # МАРШРУТЫ ПОДТВЕРЖДЕНИЯ ПОЧТЫ УДАЛЕНЫ
     
     path("accounts/profile/", ProfileView.as_view(), name="profile"),
     
@@ -82,7 +82,7 @@ urlpatterns = [
     path("dashboard/", dashboard, name="dashboard"),
     path("dashboard/announcements/new/", create_announcement, name="announcement_create"),
     
-    # Подключение приложений
+    # Приложения
     path("", include("core.urls")),
     path("", include("catalog.urls")),
     path("syllabi/", include("syllabi.urls")),
@@ -100,7 +100,6 @@ if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += staticfiles_urlpatterns()
 elif _is_local_dev_host():
-    # Local-only fallback so styles load even with DEBUG=False.
     static_prefix = settings.STATIC_URL.lstrip("/")
     media_prefix = settings.MEDIA_URL.lstrip("/")
     if media_prefix:

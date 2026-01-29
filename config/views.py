@@ -28,7 +28,7 @@ def _build_dashboard_context(request, announcement_form=None):
     pending_umu = Syllabus.objects.none()
     my_reviews = Syllabus.objects.none()
 
-    # Декан видит то, что ожидает его проверки
+    # ДЕКАН: Видит силлабусы в статусе "Согласование: Декан"
     if role in ["dean", "admin"]:
         pending_dean = (
             Syllabus.objects.filter(status=Syllabus.Status.REVIEW_DEAN)
@@ -36,7 +36,7 @@ def _build_dashboard_context(request, announcement_form=None):
             .order_by("-updated_at")[:10]
         )
 
-    # УМУ видит то, что ожидает их проверки
+    # УМУ: Видит силлабусы в статусе "Согласование: УМУ"
     if role in ["umu", "admin"]:
         pending_umu = (
             Syllabus.objects.filter(status=Syllabus.Status.REVIEW_UMU)
@@ -44,7 +44,7 @@ def _build_dashboard_context(request, announcement_form=None):
             .order_by("-updated_at")[:10]
         )
 
-    # Преподаватель видит свои силлабусы, которые "в работе" или завершены
+    # ПРЕПОДАВАТЕЛЬ: Видит свои силлабусы во всех активных статусах
     if role in ["teacher", "program_leader"]:
         my_reviews = (
             Syllabus.objects.filter(
