@@ -11,19 +11,20 @@ admin.site.site_header = "AlmaU Syllabus Copy Admin"
 admin.site.site_title = "AlmaU Syllabus Copy"
 admin.site.index_title = "Administration"
 
+# Убрали verify_email и resend_email_code из импортов
 from accounts.views import (
     LoginGateView,
     LogoutAllowGetView,
     PasswordResetGateView,
     ProfileView,
     SignupView,
-    resend_email_code,
-    verify_email,
 )
 from .views import create_announcement, dashboard
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    
+    # Главная страница - перенаправляет на логин
     path(
         "",
         LoginGateView.as_view(
@@ -32,6 +33,8 @@ urlpatterns = [
         ),
         name="home",
     ),
+    
+    # Авторизация
     path(
         "accounts/login/",
         LoginGateView.as_view(
@@ -42,9 +45,12 @@ urlpatterns = [
     ),
     path("accounts/logout/", LogoutAllowGetView.as_view(), name="logout"),
     path("accounts/signup/", SignupView.as_view(), name="signup"),
-    path("accounts/verify/", verify_email, name="verify_email"),
-    path("accounts/verify/resend/", resend_email_code, name="resend_email_code"),
+    
+    # УДАЛЕНО: Маршруты подтверждения почты (verify_email, resend_email_code)
+    
     path("accounts/profile/", ProfileView.as_view(), name="profile"),
+    
+    # Сброс пароля
     path("accounts/password_reset/", PasswordResetGateView.as_view(), name="password_reset"),
     path(
         "accounts/password_reset/done/",
@@ -71,8 +77,12 @@ urlpatterns = [
         name="password_reset_complete",
     ),
     path("accounts/", include("django.contrib.auth.urls")),
+    
+    # Дашборд
     path("dashboard/", dashboard, name="dashboard"),
     path("dashboard/announcements/new/", create_announcement, name="announcement_create"),
+    
+    # Подключение приложений
     path("", include("core.urls")),
     path("", include("catalog.urls")),
     path("syllabi/", include("syllabi.urls")),

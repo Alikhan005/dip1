@@ -28,30 +28,34 @@ def _build_dashboard_context(request, announcement_form=None):
     pending_umu = Syllabus.objects.none()
     my_reviews = Syllabus.objects.none()
 
+    # Декан видит то, что ожидает его проверки
     if role in ["dean", "admin"]:
         pending_dean = (
-            Syllabus.objects.filter(status=Syllabus.Status.SUBMITTED_DEAN)
+            Syllabus.objects.filter(status=Syllabus.Status.REVIEW_DEAN)
             .select_related("course", "creator")
             .order_by("-updated_at")[:10]
         )
 
+    # УМУ видит то, что ожидает их проверки
     if role in ["umu", "admin"]:
         pending_umu = (
-            Syllabus.objects.filter(status=Syllabus.Status.SUBMITTED_UMU)
+            Syllabus.objects.filter(status=Syllabus.Status.REVIEW_UMU)
             .select_related("course", "creator")
             .order_by("-updated_at")[:10]
         )
 
+    # Преподаватель видит свои силлабусы, которые "в работе" или завершены
     if role in ["teacher", "program_leader"]:
         my_reviews = (
             Syllabus.objects.filter(
                 creator=request.user,
                 status__in=[
-                    Syllabus.Status.SUBMITTED_DEAN,
-                    Syllabus.Status.APPROVED_DEAN,
-                    Syllabus.Status.SUBMITTED_UMU,
-                    Syllabus.Status.APPROVED_UMU,
-                    Syllabus.Status.REJECTED,
+                    Syllabus.Status.AI_CHECK,      # На проверке у робота
+                    Syllabus.Status.CORRECTION,    # Вернули на доработку
+                    Syllabus.Status.REVIEW_DEAN,   # Ушел к Декану
+                    Syllabus.Status.REVIEW_UMU,    # Ушел в УМУ
+                    Syllabus.Status.APPROVED,      # Утвержден
+                    Syllabus.Status.REJECTED,      # Отклонен
                 ],
             )
             .select_related("course")

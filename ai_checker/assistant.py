@@ -3,8 +3,9 @@ import re
 import threading
 from pathlib import Path
 
+# ИСПРАВЛЕНИЕ: Импортируем новые функции из services
 from .llm import generate_text, get_model_name
-from .services import build_syllabus_text
+from .services import build_syllabus_text_from_db, extract_text_from_file
 
 _GUIDELINES = None
 _GUIDELINES_LOCK = threading.Lock()
@@ -533,7 +534,19 @@ def answer_syllabus_question(message: str, syllabus=None) -> tuple[str, str]:
     if is_syllabus:
         guidelines = load_guidelines()
         if syllabus is not None:
-            syllabus_text = build_syllabus_text(syllabus)[:_ASSISTANT_SYLLABUS_LIMIT]
+            # ИСПРАВЛЕНИЕ: Используем правильное имя функции
+            # Пытаемся получить текст из PDF, если он есть, иначе из БД
+            extracted = None
+            if syllabus.pdf_file:
+                try:
+                    extracted = extract_text_from_file(syllabus.pdf_file.path)
+                except Exception:
+                    pass
+            
+            if extracted and len(extracted) > 50:
+                 syllabus_text = f"CONTENT FROM FILE:\n{extracted[:_ASSISTANT_SYLLABUS_LIMIT]}"
+            else:
+                 syllabus_text = build_syllabus_text_from_db(syllabus)[:_ASSISTANT_SYLLABUS_LIMIT]
 
         system = (
             "Ты помощник по составлению университетского силлабуса. "

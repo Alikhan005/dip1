@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Силлабус {{ syllabus.course.code }}{% endblock %}
 {% block content %}
-<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-4">
+
+<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-6">
   <div>
     <h1 class="text-2xl font-semibold">
       Силлабус {{ syllabus.course.code }} {{ syllabus.semester }}
@@ -10,24 +11,16 @@
     <p class="text-gray-600">
       Автор: {{ syllabus.creator.get_full_name|default:syllabus.creator.username }}
     </p>
-    <p class="text-gray-700">
-      Статус: <span class="font-semibold">{{ syllabus.get_status_display }}</span>
-    </p>
-    <p class="text-gray-700">
-      Доступ:
-      {% if syllabus.is_shared %}
-        <span class="badge badge--shared">Общий</span>
-      {% else %}
-        <span class="badge">Личный</span>
-      {% endif %}
-    </p>
-    <p class="text-gray-700">
-      Язык: {{ syllabus.get_main_language_display }} - Недель по плану: {{ syllabus.total_weeks }}
-    </p>
-    <p class="text-sm text-gray-500">
-      Версия: {{ syllabus.version_number }} - Обновлено: {{ syllabus.updated_at|date:"d.m.Y H:i" }}
-    </p>
+    <div class="flex items-center gap-2 mt-1">
+        <p class="text-gray-700">Статус:</p>
+        <span class="badge badge--{{ syllabus.status }}">{{ syllabus.get_status_display }}</span>
+    </div>
+    <div class="mt-2 text-sm text-gray-500">
+      <span class="mr-3">Версия: {{ syllabus.version_number }}</span>
+      <span>Обновлено: {{ syllabus.updated_at|date:"d.m.Y H:i" }}</span>
+    </div>
   </div>
+
   <div class="flex flex-wrap gap-2">
     {% if can_edit_topics %}
       <a href="{% url 'syllabus_edit_details' syllabus.pk %}" class="btn-secondary">Редактировать разделы</a>
@@ -40,14 +33,68 @@
         {% if syllabus.is_shared %}
           <button class="btn-secondary">Скрыть от преподавателей</button>
         {% else %}
-          <button class="btn-primary">Поделиться с преподавателями</button>
+          <button class="btn-primary">Поделиться</button>
         {% endif %}
       </form>
     {% endif %}
   </div>
 </div>
 
-<div class="card p-5 mb-4 status-rail">
+{% if can_send_ai %}
+<div class="card p-5 mb-6 border-l-4 border-blue-500 bg-blue-50/30 shadow-sm">
+  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div>
+      <h3 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+        <span>🤖</span> Автоматическая проверка ИИ
+      </h3>
+      <p class="text-slate-600 text-sm mt-1 max-w-2xl">
+        Искусственный интеллект проверит силлабус на соответствие стандартам AlmaU (литература, структура 15 недель, обязательные разделы). Это займет около 1 минуты.
+      </p>
+    </div>
+    <a href="{% url 'syllabus_send_ai' syllabus.pk %}" class="btn bg-blue-600 text-white hover:bg-blue-700 border-none shadow-md whitespace-nowrap px-6 py-2">
+      <i class="fas fa-magic mr-2"></i> Отправить на проверку
+    </a>
+  </div>
+</div>
+{% endif %}
+
+{% if syllabus.status == 'ai_check' %}
+<div class="card p-5 mb-6 bg-amber-50 border-l-4 border-amber-500 shadow-sm">
+  <div class="flex items-center gap-4">
+    <svg class="animate-spin h-8 w-8 text-amber-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+    <div>
+      <div class="text-lg font-semibold text-amber-800">Идет проверка ИИ...</div>
+      <div class="text-amber-700">
+        Силлабус находится в очереди на проверку. Пожалуйста, не закрывайте вкладку или 
+        <a href="" class="underline font-bold" onclick="window.location.reload();return false;">обновите страницу</a> через 30 секунд.
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if syllabus.status == 'correction' and syllabus.ai_feedback %}
+<div class="card p-5 mb-6 bg-red-50 border-l-4 border-red-500 shadow-sm">
+  <h3 class="text-lg font-semibold text-red-800 mb-2 flex items-center gap-2">
+    <i class="fas fa-exclamation-triangle"></i> Замечания ИИ (требуется исправление)
+  </h3>
+  <div class="text-red-800 bg-white p-4 rounded border border-red-100 mb-3 whitespace-pre-line text-sm leading-relaxed shadow-inner">
+    {{ syllabus.ai_feedback }}
+  </div>
+  <div class="flex gap-2">
+    <a href="{% url 'syllabus_edit_topics' syllabus.pk %}" class="btn btn-sm bg-red-600 text-white hover:bg-red-700 border-none">
+      Исправить темы
+    </a>
+    <a href="{% url 'syllabus_edit_details' syllabus.pk %}" class="btn btn-sm bg-white text-red-700 border border-red-200 hover:bg-red-50">
+      Исправить описания
+    </a>
+  </div>
+</div>
+{% endif %}
+<div class="card p-5 mb-6 status-rail">
   <div class="status-rail__header">
     <div>
       <div class="page-kicker">Согласование</div>
@@ -57,481 +104,197 @@
     <span class="status-pill status-pill--{{ syllabus.status }}">{{ syllabus.get_status_display }}</span>
   </div>
   <div class="status-steps">
-    <div class="status-step{% if syllabus.status == 'draft' or syllabus.status == 'rejected' %} is-active{% elif syllabus.status == 'submitted_dean' or syllabus.status == 'approved_dean' or syllabus.status == 'submitted_umu' or syllabus.status == 'approved_umu' %} is-done{% endif %}">
+    <div class="status-step{% if syllabus.status == 'draft' or syllabus.status == 'correction' %} is-active{% elif syllabus.status != 'draft' and syllabus.status != 'correction' %} is-done{% endif %}">
       <div class="status-step__badge">1</div>
-      <div class="status-step__label">Черновик</div>
-      <div class="status-step__desc">Заполните темы, часы и основные разделы.</div>
+      <div class="status-step__label">Подготовка</div>
+      <div class="status-step__desc">Заполнение и работа над ошибками.</div>
     </div>
-    <div class="status-step{% if syllabus.status == 'submitted_dean' %} is-active{% elif syllabus.status == 'rejected' %} is-blocked{% elif syllabus.status == 'approved_dean' or syllabus.status == 'submitted_umu' or syllabus.status == 'approved_umu' %} is-done{% endif %}">
+    <div class="status-step{% if syllabus.status == 'ai_check' %} is-active{% elif syllabus.status != 'draft' and syllabus.status != 'correction' and syllabus.status != 'ai_check' %} is-done{% endif %}">
       <div class="status-step__badge">2</div>
-      <div class="status-step__label">Декан</div>
-      <div class="status-step__desc">Проверка структуры и нагрузки.</div>
+      <div class="status-step__label">AI Проверка</div>
+      <div class="status-step__desc">Автоматический контроль.</div>
     </div>
-    <div class="status-step{% if syllabus.status == 'submitted_umu' %} is-active{% elif syllabus.status == 'approved_umu' %} is-done{% endif %}">
+    <div class="status-step{% if syllabus.status == 'review_dean' %} is-active{% elif syllabus.status == 'review_umu' or syllabus.status == 'approved' %} is-done{% endif %}">
       <div class="status-step__badge">3</div>
-      <div class="status-step__label">УМУ</div>
-      <div class="status-step__desc">Финальная проверка и подпись.</div>
+      <div class="status-step__label">Декан</div>
+      <div class="status-step__desc">Согласование руководством школы.</div>
     </div>
-    <div class="status-step{% if syllabus.status == 'approved_umu' %} is-active{% endif %}">
+    <div class="status-step{% if syllabus.status == 'review_umu' %} is-active{% elif syllabus.status == 'approved' %} is-done{% endif %}">
       <div class="status-step__badge">4</div>
-      <div class="status-step__label">Финал</div>
-      <div class="status-step__desc">Силлабус утвержден и фиксируется в системе.</div>
+      <div class="status-step__label">УМУ</div>
+      <div class="status-step__desc">Финальный контроль стандартов.</div>
     </div>
   </div>
-  <div class="status-checklist">
+  
+  <div class="status-checklist mt-4 pt-4 border-t">
+    <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Критерии готовности:</p>
+    
     {% if has_topics %}
       <div class="status-check is-done">Темы и недели заполнены</div>
     {% elif syllabus.pdf_file %}
-      <div class="status-check is-optional">Темы можно заполнить позже (сейчас работает PDF)</div>
+      <div class="status-check is-optional">Темы не заполнены (Используется PDF)</div>
     {% else %}
-      <div class="status-check is-missing">Темы и недели пока не заполнены</div>
+      <div class="status-check is-missing">Темы и недели не заполнены</div>
     {% endif %}
-    {% if main_literature_list or additional_literature_list %}
-      <div class="status-check is-done">Литература заполнена</div>
-    {% else %}
-      <div class="status-check is-missing">Литература пока не заполнена</div>
-    {% endif %}
+
     {% if syllabus.pdf_file %}
-      <div class="status-check is-done">PDF прикреплен</div>
+      <div class="status-check is-done">Файл PDF загружен</div>
     {% else %}
-      <div class="status-check is-optional">PDF не обязателен, но удобен для согласования</div>
+      <div class="status-check is-optional">Файл PDF отсутствует (будет сгенерирован системой)</div>
     {% endif %}
-    {% if has_topics %}
-      <div class="status-check is-done">AI-проверка доступна</div>
+
+    {% if syllabus.status == 'review_dean' or syllabus.status == 'review_umu' or syllabus.status == 'approved' %}
+       <div class="status-check is-done">AI проверка пройдена</div>
     {% else %}
-      <div class="status-check is-optional">AI-проверка откроется после заполнения тем</div>
+       <div class="status-check is-missing">AI проверка не пройдена</div>
     {% endif %}
   </div>
-  {% if syllabus.status == "rejected" %}
-    <div class="status-rail__note">Силлабус отклонен. Проверьте комментарии в журнале и исправьте замечания.</div>
-  {% endif %}
 </div>
 
-<div class="callout mb-4">
+
+<div class="callout mb-6">
   <div class="callout__badge">!</div>
   <div class="callout__text">
-    {% if can_submit_dean %}
-      Следующий шаг: проверьте заполнение разделов и отправьте силлабус декану на согласование.
+    {% if can_send_ai %}
+      <strong>Ваше действие:</strong> Нажмите кнопку "Отправить на проверку" выше, чтобы запустить ИИ.
+    {% elif syllabus.status == 'ai_check' %}
+      <strong>Ожидание:</strong> Система проверяет документ. Пожалуйста, подождите.
     {% elif can_approve_dean %}
-      Следующий шаг: проверьте структуру и нагрузку, оставьте комментарий и утвердите либо верните на доработку.
-    {% elif can_submit_umu %}
-      Следующий шаг: документ утвержден деканом — отправьте его в УМУ.
+      <strong>Действие Декана:</strong> Проверьте документ и примите решение (кнопки ниже).
     {% elif can_approve_umu %}
-      Следующий шаг: финальная проверка УМУ — утвердите документ или верните на доработку с комментарием.
+      <strong>Действие УМУ:</strong> Финальная проверка перед утверждением.
     {% elif is_frozen %}
-      Финальная версия зафиксирована. Доступно скачивание PDF и просмотр истории изменений.
+      Финальная версия зафиксирована. Документ утвержден.
     {% else %}
-      Документ доступен для просмотра. Редактирование доступно только автору-преподавателю.
+      Ожидайте действий согласующих лиц.
     {% endif %}
   </div>
 </div>
+
+
+{% if can_approve_dean or can_approve_umu or can_submit_umu or can_submit_dean %}
+<div class="card p-5 mb-6 bg-gray-50 border border-gray-200">
+  <h3 class="font-semibold mb-3">Панель согласования</h3>
+  <div class="flex flex-wrap gap-3">
+    
+    {% if can_approve_dean %}
+      <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'review_umu' %}" class="inline-flex items-center gap-2">
+        {% csrf_token %}
+        <input type="text" name="comment" placeholder="Комментарий (опц.)" class="border rounded px-3 py-2 text-sm w-64">
+        <button class="btn-primary">✅ Одобрить и отправить в УМУ</button>
+      </form>
+      <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'correction' %}" class="inline-flex items-center gap-2">
+        {% csrf_token %}
+        <input type="text" name="comment" placeholder="Причина возврата" class="border rounded px-3 py-2 text-sm w-64" required>
+        <button class="btn-secondary text-red-600 hover:bg-red-50">↩ Вернуть на доработку</button>
+      </form>
+    {% endif %}
+
+    {% if can_approve_umu %}
+      <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'approved' %}" class="inline-flex items-center gap-2">
+        {% csrf_token %}
+        <input type="text" name="comment" placeholder="Финальный комментарий" class="border rounded px-3 py-2 text-sm w-64">
+        <button class="btn-primary bg-green-600 hover:bg-green-700 border-none">🏆 Утвердить финально</button>
+      </form>
+      <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'correction' %}" class="inline-flex items-center gap-2">
+        {% csrf_token %}
+        <input type="text" name="comment" placeholder="Причина отклонения" class="border rounded px-3 py-2 text-sm w-64" required>
+        <button class="btn-secondary text-red-600 hover:bg-red-50">🛑 Отклонить</button>
+      </form>
+    {% endif %}
+
+  </div>
+</div>
+{% endif %}
+
 
 {% if syllabus.pdf_file and not has_topics %}
   <div class="card p-4 mb-4">
     <div class="font-semibold">Силлабус работает в PDF-режиме</div>
     <p class="text-sm text-slate-600 mt-1">
-      Темы не заполнены — для согласования используется загруженный PDF. При необходимости темы можно добавить позже.
+      Темы не заполнены — для согласования используется загруженный PDF.
     </p>
   </div>
 {% endif %}
 
-{% if is_frozen %}
-  <div class="card p-4 mb-4">
-    <div class="font-semibold">Силлабус утвержден УМУ и заморожен</div>
-    <p class="text-sm text-slate-600 mt-1">
-      Редактирование тем закрыто. Загрузить финальный файл может только УМУ или администратор.
-    </p>
-  </div>
-{% endif %}
-
-<div class="space-y-4 mb-6">
-  <div class="flex flex-wrap gap-3">
-    {% if can_submit_dean %}
-      <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'submitted_dean' %}" class="inline-flex items-center gap-2">
-        {% csrf_token %}
-        <input type="text" name="comment" placeholder="Комментарий" class="border rounded px-2 py-1 text-sm">
-        <button class="btn-primary">Отправить декану</button>
-      </form>
-    {% endif %}
-
-    {% if can_approve_dean %}
-      <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'approved_dean' %}" class="inline-flex items-center gap-2">
-        {% csrf_token %}
-        <input type="text" name="comment" placeholder="Комментарий" class="border rounded px-2 py-1 text-sm">
-        <button class="btn-primary">Утвердить</button>
-      </form>
-      <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'rejected' %}" class="inline-flex items-center gap-2">
-        {% csrf_token %}
-        <input type="text" name="comment" placeholder="Причина отклонения" class="border rounded px-2 py-1 text-sm" required>
-        <button class="btn-secondary">Отклонить</button>
-      </form>
-    {% endif %}
-
-    {% if can_submit_umu %}
-      <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'submitted_umu' %}" class="inline-flex items-center gap-2">
-        {% csrf_token %}
-        <input type="text" name="comment" placeholder="Комментарий" class="border rounded px-2 py-1 text-sm">
-        <button class="btn-primary">Отправить в УМУ</button>
-      </form>
-    {% endif %}
-
-    {% if can_approve_umu %}
-      <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'approved_umu' %}" class="inline-flex items-center gap-2">
-        {% csrf_token %}
-        <input type="text" name="comment" placeholder="Комментарий" class="border rounded px-2 py-1 text-sm">
-        <button class="btn-primary">Финально утвердить (УМУ)</button>
-      </form>
-    {% endif %}
-
-    {% if can_reject_umu %}
-      <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'rejected' %}" class="inline-flex items-center gap-2">
-        {% csrf_token %}
-        <input type="text" name="comment" placeholder="Причина отклонения" class="border rounded px-2 py-1 text-sm" required>
-        <button class="btn-secondary">Отклонить</button>
-      </form>
-    {% endif %}
-  </div>
-  {% if can_approve_dean or can_approve_umu %}
-    <p class="text-xs text-slate-500">Комментарий обязателен при отклонении.</p>
-  {% endif %}
-
-  <div class="card p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-    <div>
-      <p class="font-semibold">Подписанный файл</p>
-      {% if syllabus.pdf_file %}
-        <a href="{{ syllabus.pdf_file.url }}" class="link text-sm">Скачать текущий файл</a>
-      {% else %}
-        <p class="text-gray-600 text-sm">Файл пока не загружен.</p>
-      {% endif %}
-      <p class="text-xs text-slate-500 mt-1">
-        PDF хранится как вложение; редактирование выполняется в темах и разделах. Если тем нет, используется PDF.
-      </p>
-      {% if syllabus.is_shared %}
-        <p class="text-xs text-slate-500">Этот файл виден другим преподавателям по похожим дисциплинам.</p>
-      {% endif %}
-    </div>
-    {% if can_upload %}
-      <form method="post" action="{% url 'syllabus_upload_file' syllabus.pk %}" enctype="multipart/form-data" class="flex items-center gap-2">
-        {% csrf_token %}
-        <input type="file" name="attachment" class="text-sm">
-        <button class="btn-secondary">Загрузить/заменить</button>
-      </form>
-    {% endif %}
-  </div>
-
-</div>
-
-{% if has_topics %}
-  <div class="flex items-center gap-3 mb-4">
-    <form method="post" action="{% url 'ai_check_run' syllabus.pk %}">
-      {% csrf_token %}
-      <button class="btn-primary">Запустить AI-проверку</button>
-    </form>
-  </div>
-{% else %}
-  <div class="text-sm text-slate-500 mb-4">
-    AI-проверка доступна после заполнения тем.
-  </div>
-{% endif %}
-
-{% if syllabus.ai_checks.exists %}
-  <div class="mb-6">
-    <h3 class="text-lg font-semibold mb-2">История AI-проверок</h3>
-    <ul class="list-disc ml-6 space-y-1">
-      {% for check in syllabus.ai_checks.all %}
-        <li>
-          <a href="{% url 'ai_check_detail' check.pk %}" class="link">
-            {{ check.created_at|date:"d.m.Y H:i" }} - {{ check.model_name }}
-          </a>
-        </li>
-      {% endfor %}
-    </ul>
-  </div>
-{% endif %}
-
-{% if syllabus.status_logs.exists %}
-  <div class="mb-6">
-    <h3 class="text-lg font-semibold mb-2">Журнал согласования</h3>
-    <div class="card divide-y">
-      {% for log in syllabus.status_logs.all %}
-        <div class="px-4 py-2 text-sm">
-          <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <span class="font-medium">{{ log.from_status_label }} -> {{ log.to_status_label }}</span>
-              {% if log.comment %}
-                <span class="text-gray-500 ml-2">{{ log.comment }}</span>
-              {% endif %}
-            </div>
-            <div class="text-gray-500">
-              {{ log.changed_at|date:"d.m.Y H:i" }}
-              {% if log.changed_by %}
-                - {{ log.changed_by.get_full_name|default:log.changed_by.username }}
-              {% endif %}
-            </div>
-          </div>
-        </div>
-      {% endfor %}
-    </div>
-  </div>
-{% endif %}
-
-{% if syllabus.audit_logs.exists %}
-  <div class="mb-6">
-    <h3 class="text-lg font-semibold mb-2">Журнал действий</h3>
-    <div class="card divide-y">
-      {% for log in syllabus.audit_logs.all %}
-        <div class="px-4 py-2 text-sm">
-          <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <span class="font-medium">{{ log.get_action_display }}</span>
-              {% if log.message %}
-                <span class="text-gray-500 ml-2">{{ log.message }}</span>
-              {% endif %}
-              {% if log.metadata.fields %}
-                <span class="text-gray-500 ml-2">
-                  Поля: {{ log.metadata.fields|join:", " }}
-                </span>
-              {% endif %}
-            </div>
-            <div class="text-gray-500">
-              {{ log.created_at|date:"d.m.Y H:i" }}
-              {% if log.actor %}
-                - {{ log.actor.get_full_name|default:log.actor.username }}
-              {% endif %}
-            </div>
-          </div>
-        </div>
-      {% endfor %}
-    </div>
-  </div>
-{% endif %}
-
-{% if syllabus.revisions.exists %}
-  <div class="mb-6">
-    <h3 class="text-lg font-semibold mb-2">История изменений</h3>
-    <div class="card divide-y">
-      {% for revision in syllabus.revisions.all %}
-        <div class="px-4 py-2 text-sm">
-          <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <span class="font-medium">v{{ revision.version_number }}</span>
-              {% if revision.note %}
-                <span class="text-gray-500 ml-2">{{ revision.note }}</span>
-              {% endif %}
-            </div>
-            <div class="text-gray-500">
-              {{ revision.created_at|date:"d.m.Y H:i" }}
-              {% if revision.changed_by %}
-                - {{ revision.changed_by.get_full_name|default:revision.changed_by.username }}
-              {% endif %}
-            </div>
-          </div>
-        </div>
-      {% endfor %}
-    </div>
-  </div>
-{% endif %}
-
-{% if syllabus.credits_ects or syllabus.total_hours or syllabus.contact_hours or syllabus.self_study_hours or syllabus.prerequisites or syllabus.delivery_format or syllabus.level or syllabus.program_name or syllabus.instructor_name or syllabus.instructor_contacts or syllabus.class_schedule %}
+{% if syllabus.credits_ects or syllabus.total_hours or syllabus.contact_hours %}
   <div class="card p-5 mb-6">
     <h2 class="text-xl font-semibold mb-3">Паспорт дисциплины</h2>
     <div class="grid gap-3 md:grid-cols-2 text-sm text-slate-700">
       {% if syllabus.credits_ects %}<div><span class="font-semibold">Кредиты (ECTS):</span> {{ syllabus.credits_ects }}</div>{% endif %}
       {% if syllabus.total_hours %}<div><span class="font-semibold">Всего часов:</span> {{ syllabus.total_hours }}</div>{% endif %}
       {% if syllabus.contact_hours %}<div><span class="font-semibold">Аудиторные часы:</span> {{ syllabus.contact_hours }}</div>{% endif %}
-      {% if syllabus.self_study_hours %}<div><span class="font-semibold">Самостоятельная работа:</span> {{ syllabus.self_study_hours }}</div>{% endif %}
-      {% if syllabus.prerequisites %}<div><span class="font-semibold">Пререквизиты:</span> {{ syllabus.prerequisites|linebreaksbr }}</div>{% endif %}
-      {% if syllabus.delivery_format %}<div><span class="font-semibold">Формат обучения:</span> {{ syllabus.delivery_format }}</div>{% endif %}
-      {% if syllabus.level %}<div><span class="font-semibold">Уровень:</span> {{ syllabus.level }}</div>{% endif %}
-      {% if syllabus.program_name %}<div><span class="font-semibold">Программа:</span> {{ syllabus.program_name }}</div>{% endif %}
       {% if syllabus.instructor_name %}<div><span class="font-semibold">Преподаватель:</span> {{ syllabus.instructor_name }}</div>{% endif %}
-      {% if syllabus.instructor_contacts %}<div><span class="font-semibold">Контакты:</span> {{ syllabus.instructor_contacts|linebreaksbr }}</div>{% endif %}
-      {% if syllabus.class_schedule %}<div class="md:col-span-2"><span class="font-semibold">Время и место занятий:</span> {{ syllabus.class_schedule|linebreaksbr }}</div>{% endif %}
     </div>
   </div>
 {% endif %}
 
-{% if syllabus.course_description or syllabus.course_goal or learning_outcomes_list or teaching_methods_list %}
-  <div class="card p-5 mb-6">
-    <h2 class="text-xl font-semibold mb-3">Описание и результаты</h2>
-    {% if syllabus.course_description %}
-      <div class="mb-3">
-        <div class="font-semibold">Краткое описание курса</div>
-        <div class="text-sm text-slate-700">{{ syllabus.course_description|linebreaksbr }}</div>
-      </div>
-    {% endif %}
-    {% if syllabus.course_goal %}
-      <div class="mb-3">
-        <div class="font-semibold">Цель курса</div>
-        <div class="text-sm text-slate-700">{{ syllabus.course_goal|linebreaksbr }}</div>
-      </div>
-    {% endif %}
-    {% if learning_outcomes_list %}
-      <div class="mb-3">
-        <div class="font-semibold">Ожидаемые результаты</div>
-        <ul class="list-disc ml-5 text-sm text-slate-700">
-          {% for item in learning_outcomes_list %}
-            <li>{{ item }}</li>
-          {% endfor %}
-        </ul>
-      </div>
-    {% endif %}
-    {% if teaching_methods_list %}
-      <div>
-        <div class="font-semibold">Методы обучения</div>
-        <ul class="list-disc ml-5 text-sm text-slate-700">
-          {% for item in teaching_methods_list %}
-            <li>{{ item }}</li>
-          {% endfor %}
-        </ul>
-      </div>
-    {% endif %}
-  </div>
-{% endif %}
 
-{% if syllabus.teaching_philosophy or syllabus.course_policy or syllabus.academic_integrity_policy or syllabus.inclusive_policy or syllabus.assessment_policy or syllabus.grading_scale or syllabus.appendix %}
-  <div class="card p-5 mb-6 space-y-4">
-    <h2 class="text-xl font-semibold">Политики и оценивание</h2>
-    {% if syllabus.teaching_philosophy %}
-      <div>
-        <div class="font-semibold">Философия преподавания и обучения</div>
-        <div class="text-sm text-slate-700">{{ syllabus.teaching_philosophy|linebreaksbr }}</div>
-      </div>
-    {% endif %}
-    {% if syllabus.course_policy %}
-      <div>
-        <div class="font-semibold">Политика курса</div>
-        <div class="text-sm text-slate-700">{{ syllabus.course_policy|linebreaksbr }}</div>
-      </div>
-    {% endif %}
-    {% if syllabus.academic_integrity_policy %}
-      <div>
-        <div class="font-semibold">Академическая честность и ИИ</div>
-        <div class="text-sm text-slate-700">{{ syllabus.academic_integrity_policy|linebreaksbr }}</div>
-      </div>
-    {% endif %}
-    {% if syllabus.inclusive_policy %}
-      <div>
-        <div class="font-semibold">Инклюзивное сообщество</div>
-        <div class="text-sm text-slate-700">{{ syllabus.inclusive_policy|linebreaksbr }}</div>
-      </div>
-    {% endif %}
-    {% if syllabus.assessment_policy %}
-      <div>
-        <div class="font-semibold">Политика оценивания</div>
-        <div class="text-sm text-slate-700">{{ syllabus.assessment_policy|linebreaksbr }}</div>
-      </div>
-    {% endif %}
-    {% if syllabus.grading_scale %}
-      <div>
-        <div class="font-semibold">Шкала оценивания</div>
-        <div class="text-sm text-slate-700">{{ syllabus.grading_scale|linebreaksbr }}</div>
-      </div>
-    {% endif %}
-    {% if syllabus.appendix %}
-      <div>
-        <div class="font-semibold">Приложения</div>
-        <div class="text-sm text-slate-700">{{ syllabus.appendix|linebreaksbr }}</div>
-      </div>
-    {% endif %}
-  </div>
-{% endif %}
-
-{% if main_literature_list or additional_literature_list %}
-  <div class="card p-5 mb-6">
-    <h2 class="text-xl font-semibold mb-3">Список литературы</h2>
-    {% if main_literature_list %}
-      <div class="mb-3">
-        <div class="font-semibold">Обязательная литература</div>
-        <ul class="list-disc ml-5 text-sm text-slate-700">
-          {% for item in main_literature_list %}
-            <li>{{ item }}</li>
-          {% endfor %}
-        </ul>
-      </div>
-    {% endif %}
-    {% if additional_literature_list %}
-      <div>
-        <div class="font-semibold">Дополнительная литература</div>
-        <ul class="list-disc ml-5 text-sm text-slate-700">
-          {% for item in additional_literature_list %}
-            <li>{{ item }}</li>
-          {% endfor %}
-        </ul>
-      </div>
-    {% endif %}
-  </div>
-{% endif %}
-
-<h2 class="text-xl font-semibold mb-2">Тематический план по неделям</h2>
-<table class="table">
-  <thead>
-    <tr class="border-b">
-      <th class="p-2 text-left">Неделя</th>
-      <th class="p-2 text-left">Тема / модуль</th>
-      <th class="p-2 text-left">Задания</th>
-      <th class="p-2 text-left">Результат обучения</th>
-      <th class="p-2 text-left">Литература</th>
-      <th class="p-2 text-left">Структура оценок</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for st in topics %}
-      <tr class="border-b align-top">
-        <td class="p-2">{{ st.week_label|default:st.week_number }}</td>
-        <td class="p-2">
-          <div class="font-medium">{{ st.get_title }}</div>
-          <div class="text-xs text-slate-500">
-            {{ st.topic.get_week_type_display }},
-            {{ st.custom_hours|default:st.topic.default_hours }} ч.
-          </div>
-        </td>
-        <td class="p-2 text-sm text-slate-700">
-          {% if st.tasks %}
-            {{ st.tasks|linebreaksbr }}
-          {% elif st.topic.description_ru or st.topic.description_en or st.topic.description_kz %}
-            {{ st.topic.description_ru|default:st.topic.description_en|default:st.topic.description_kz }}
-          {% else %}
-            <span class="text-slate-400">?</span>
-          {% endif %}
-        </td>
-        <td class="p-2 text-sm text-slate-700">
-          {% if st.learning_outcomes %}
-            {{ st.learning_outcomes|linebreaksbr }}
-          {% else %}
-            <span class="text-slate-400">?</span>
-          {% endif %}
-        </td>
-        <td class="p-2 text-sm text-slate-700">
-          {% if st.literature_notes %}
-            {{ st.literature_notes|linebreaksbr }}
-          {% elif st.topic.literature.all %}
-            <ul class="list-disc ml-4">
-              {% for lit in st.topic.literature.all %}
-                <li>
-                  {{ lit.title }}
-                  {% if lit.author %} - {{ lit.author }}{% endif %}
-                  {% if lit.year %} ({{ lit.year }}){% endif %}
-                </li>
-              {% endfor %}
-            </ul>
-          {% else %}
-            <span class="text-slate-400">?</span>
-          {% endif %}
-        </td>
-        <td class="p-2 text-sm text-slate-700">
-          {% if st.assessment %}
-            {{ st.assessment|linebreaksbr }}
-          {% else %}
-            <span class="text-slate-400">?</span>
-          {% endif %}
-        </td>
+<h2 class="text-xl font-semibold mb-2">Тематический план</h2>
+<div class="card overflow-hidden">
+  <table class="table w-full">
+    <thead class="bg-slate-50">
+      <tr class="border-b">
+        <th class="p-3 text-left text-sm font-semibold text-slate-600">Неделя</th>
+        <th class="p-3 text-left text-sm font-semibold text-slate-600">Тема</th>
+        <th class="p-3 text-left text-sm font-semibold text-slate-600">Задания</th>
+        <th class="p-3 text-left text-sm font-semibold text-slate-600">Литература</th>
       </tr>
-    {% empty %}
-      <tr>
-        <td colspan="6" class="p-4">Пока нет тематического плана по неделям.</td>
-      </tr>
-    {% endfor %}
-  </tbody>
-</table>
+    </thead>
+    <tbody class="divide-y">
+      {% for st in topics %}
+        <tr class="hover:bg-slate-50/50">
+          <td class="p-3 text-sm font-medium text-slate-700 w-24">
+              {{ st.week_label|default:st.week_number }}
+          </td>
+          <td class="p-3">
+            <div class="font-medium text-slate-800">{{ st.get_title }}</div>
+            <div class="text-xs text-slate-500 mt-1">
+              {{ st.topic.get_week_type_display }} • {{ st.custom_hours|default:st.topic.default_hours }} ч.
+            </div>
+          </td>
+          <td class="p-3 text-sm text-slate-600">
+            {{ st.tasks|default:"-"|truncatechars:50 }}
+          </td>
+          <td class="p-3 text-sm text-slate-600">
+             {% if st.topic.literature.exists %}
+                <span class="badge">Источников: {{ st.topic.literature.count }}</span>
+             {% else %}
+                <span class="text-red-400 text-xs">Нет лит-ры</span>
+             {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="4" class="p-6 text-center text-slate-500">
+            Темы не заполнены. <a href="{% url 'syllabus_edit_topics' syllabus.pk %}" class="link">Заполнить сейчас</a>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if syllabus.revisions.exists %}
+<div class="mt-8">
+    <details class="group">
+        <summary class="flex items-center gap-2 cursor-pointer font-semibold text-slate-600">
+            <span>🕘 История изменений и логи</span>
+            <span class="transition group-open:rotate-180">▼</span>
+        </summary>
+        <div class="mt-4 card divide-y">
+            {% for revision in syllabus.revisions.all %}
+            <div class="px-4 py-2 text-sm flex justify-between">
+                <div>
+                    <span class="font-bold">v{{ revision.version_number }}</span>
+                    <span class="ml-2">{{ revision.note }}</span>
+                </div>
+                <div class="text-gray-400">{{ revision.created_at|date:"d.m.Y H:i" }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </details>
+</div>
+{% endif %}
+
 {% endblock %}

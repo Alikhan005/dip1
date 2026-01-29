@@ -277,7 +277,9 @@ def syllabus_detail(request, pk):
     syllabus = get_object_or_404(Syllabus.objects.select_related("course", "creator"), pk=pk)
     if not _can_view_syllabus(request.user, syllabus):
         raise PermissionDenied("Нет доступа к этому силлабусу.")
-    is_frozen = syllabus.status == Syllabus.Status.APPROVED_UMU
+    
+    # ИСПРАВЛЕНИЕ: Новый статус APPROVED
+    is_frozen = syllabus.status == Syllabus.Status.APPROVED
     is_creator = request.user == syllabus.creator
     role = request.user.role
     is_admin_like = request.user.is_admin_like or request.user.is_superuser
@@ -286,6 +288,7 @@ def syllabus_detail(request, pk):
     is_teacher_like = request.user.is_teacher_like
 
     can_edit_topics = not is_frozen and is_creator and is_teacher_like
+    
     topics = list(
         syllabus.syllabus_topics.select_related("topic")
         .prefetch_related("topic__literature", "topic__questions")
@@ -293,27 +296,41 @@ def syllabus_detail(request, pk):
     )
     has_topics = bool(topics)
     derived_main_literature, derived_additional_literature = _build_literature_lists(topics)
+    
+    # Кнопки Workflow (с учетом новых статусов)
+    
+    # Отправить на AI проверку: только автор, если черновик или на доработке
+    can_send_ai = (
+        is_creator 
+        and syllabus.status in [Syllabus.Status.DRAFT, Syllabus.Status.CORRECTION]
+    )
+
+    # Ручная отправка Декану (если вдруг AI не используется или нужно отправить принудительно)
     can_submit_dean = (
         is_creator
-        and syllabus.status in ["draft", "rejected"]
+        and syllabus.status in [Syllabus.Status.DRAFT, Syllabus.Status.CORRECTION]
         and is_teacher_like
     )
+    
+    # Декан проверяет (статус REVIEW_DEAN)
     can_approve_dean = (
-        syllabus.status == "submitted_dean"
+        syllabus.status == Syllabus.Status.REVIEW_DEAN
         and is_dean
         and not is_creator
     )
-    can_submit_umu = (
-        syllabus.status == "approved_dean"
-        and is_creator
-        and is_teacher_like
-    )
+    
+    # Кнопки отправки в УМУ больше нет, так как Декан при утверждении сразу переводит в REVIEW_UMU
+    can_submit_umu = False
+
+    # УМУ проверяет (статус REVIEW_UMU)
     can_approve_umu = (
-        syllabus.status == "submitted_umu"
+        syllabus.status == Syllabus.Status.REVIEW_UMU
         and is_umu
         and not is_creator
     )
     can_reject_umu = can_approve_umu
+    
+    # Загрузка файлов
     can_upload = (is_creator and not is_frozen and is_teacher_like) or (is_umu and is_frozen)
     can_share = is_creator and is_teacher_like
 
@@ -326,6 +343,7 @@ def syllabus_detail(request, pk):
             "has_topics": has_topics,
             "is_frozen": is_frozen,
             "can_edit_topics": can_edit_topics,
+            "can_send_ai": can_send_ai,
             "can_submit_dean": can_submit_dean,
             "can_approve_dean": can_approve_dean,
             "can_submit_umu": can_submit_umu,
@@ -348,7 +366,8 @@ def syllabus_detail(request, pk):
 @role_required("teacher", "program_leader")
 def syllabus_edit_topics(request, pk):
     syllabus = get_object_or_404(Syllabus, pk=pk, creator=request.user)
-    if syllabus.status == Syllabus.Status.APPROVED_UMU:
+    # ИСПРАВЛЕНИЕ: Новый статус APPROVED
+    if syllabus.status == Syllabus.Status.APPROVED:
         messages.error(request, "Силлабус утвержден УМУ и заморожен.")
         return redirect("syllabus_detail", pk=syllabus.pk)
 
@@ -513,7 +532,8 @@ def syllabus_edit_topics(request, pk):
 def syllabus_edit_details(request, pk):
     syllabus = get_object_or_404(Syllabus, pk=pk, creator=request.user)
 
-    if syllabus.status == Syllabus.Status.APPROVED_UMU:
+    # ИСПРАВЛЕНИЕ: Новый статус APPROVED
+    if syllabus.status == Syllabus.Status.APPROVED:
         messages.error(request, "Силлабус утвержден и недоступен для редактирования.")
         return redirect("syllabus_detail", pk=syllabus.pk)
 
@@ -569,7 +589,42 @@ def syllabus_pdf(request, pk):
 
 
 @login_required
+def send_to_ai_check(request, pk):
+    """
+    НОВАЯ КНОПКА: Отправить на проверку ИИ.
+    Переводит статус в 'ai_check', который слушает фоновый воркер.
+    """
+    syllabus = get_object_or_404(Syllabus, pk=pk)
+    
+    if request.user != syllabus.creator:
+        messages.error(request, "Только создатель может отправить силлабус на проверку.")
+        return redirect('syllabus_detail', pk=pk)
+
+    if syllabus.status not in [Syllabus.Status.DRAFT, Syllabus.Status.CORRECTION]:
+        messages.warning(request, "Силлабус уже на проверке или утвержден.")
+        return redirect('syllabus_detail', pk=pk)
+
+    # 3. Меняем статус
+    syllabus.status = Syllabus.Status.AI_CHECK
+    syllabus.save(update_fields=['status'])
+    
+    # 4. Пишем в историю
+    SyllabusRevision.objects.create(
+        syllabus=syllabus,
+        changed_by=request.user,
+        version_number=syllabus.version_number,
+        note="Отправлено на проверку ИИ"
+    )
+
+    messages.success(request, "Силлабус отправлен на проверку ИИ. Ожидайте результата.")
+    return redirect('syllabus_detail', pk=pk)
+
+
+@login_required
 def syllabus_change_status(request, pk, new_status):
+    """
+    Ручное изменение статуса (для Декана/УМУ).
+    """
     syllabus = get_object_or_404(Syllabus, pk=pk)
     if request.method == "POST":
         comment = request.POST.get("comment", "").strip()
@@ -591,7 +646,9 @@ def syllabus_upload_file(request, pk):
     is_umu = request.user.role == "umu" or is_admin_like
     is_teacher_like = request.user.is_teacher_like
     is_creator = request.user == syllabus.creator
-    is_frozen = syllabus.status == Syllabus.Status.APPROVED_UMU
+    # ИСПРАВЛЕНИЕ: Новый статус APPROVED
+    is_frozen = syllabus.status == Syllabus.Status.APPROVED
+    
     can_upload = (is_creator and not is_frozen and is_teacher_like) or (is_umu and is_frozen)
     if not can_upload:
         raise PermissionDenied("У вас нет прав на загрузку файла для этого силлабуса.")

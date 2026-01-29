@@ -10,26 +10,34 @@ class Syllabus(models.Model):
         ("en", "English"),
     ]
 
+    # --- ИЗМЕНЕНИЕ: Новая цепочка статусов (Workflow) ---
     class Status(models.TextChoices):
         DRAFT = "draft", "Черновик"
-        SUBMITTED_DEAN = "submitted_dean", "Отправлено декану"
-        APPROVED_DEAN = "approved_dean", "Утверждено деканом"
-        SUBMITTED_UMU = "submitted_umu", "Отправлено в УМУ"
-        APPROVED_UMU = "approved_umu", "Утверждено УМУ"
-        REJECTED = "rejected", "Отклонено"
+        AI_CHECK = "ai_check", "На проверке ИИ"  # Статус для фонового воркера
+        CORRECTION = "correction", "На доработке"  # Сюда возвращает ИИ или Декан
+        REVIEW_DEAN = "review_dean", "Согласование: Декан"
+        REVIEW_UMU = "review_umu", "Согласование: УМУ"
+        APPROVED = "approved", "Утвержден"
+        REJECTED = "rejected", "Отклонено (Архив)"
 
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="syllabi")
     creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="syllabi")
     semester = models.CharField(max_length=50)  # например, Fall 2025
     academic_year = models.CharField(max_length=20)  # например, 2025_2026
+    
+    # Статус теперь использует новые choices
     status = models.CharField(max_length=32, choices=Status.choices, default=Status.DRAFT)
+    
     total_weeks = models.PositiveIntegerField(default=15)
-
     main_language = models.CharField(max_length=5, choices=LANG_CHOICES, default="ru")
 
     pdf_file = models.FileField(upload_to="syllabi_pdfs/", blank=True, null=True)
     is_shared = models.BooleanField(default=False)
     version_number = models.PositiveIntegerField(default=1)
+
+    # --- ИЗМЕНЕНИЕ: Поле для хранения ответа ИИ ---
+    # Сюда воркер запишет ошибки, найденные ИИ
+    ai_feedback = models.TextField(blank=True, help_text="Замечания от ИИ проверки")
 
     credits_ects = models.CharField(max_length=20, blank=True)
     total_hours = models.PositiveIntegerField(blank=True, null=True)
@@ -64,6 +72,11 @@ class Syllabus(models.Model):
 
     def __str__(self):
         return f"{self.course.code} {self.semester} {self.academic_year}"
+    
+    @property
+    def is_editable(self):
+        """Можно редактировать только в статусе Черновик или На доработке."""
+        return self.status in [self.Status.DRAFT, self.Status.CORRECTION]
 
 
 class SyllabusTopic(models.Model):

@@ -1,19 +1,16 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import EmailVerification, User
+from .models import User
 
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
+    # Добавляем наши кастомные поля (роль, факультет, кафедра) в форму редактирования
     fieldsets = BaseUserAdmin.fieldsets + (
-        ("Роли и структура", {"fields": ("role", "faculty", "department", "email_verified")}),
+        ("Роли и структура", {"fields": ("role", "faculty", "department")}),
     )
-    list_display = ("username", "email", "email_verified", "role", "faculty", "department")
-    list_filter = ("role", "faculty", "department", "email_verified")
-
-
-@admin.register(EmailVerification)
-class EmailVerificationAdmin(admin.ModelAdmin):
-    list_display = ("user", "expires_at", "verified_at", "attempts", "last_sent_at")
-    search_fields = ("user__username", "user__email")
-
+    
+    # Настраиваем отображение списка пользователей
+    list_display = ("username", "email", "first_name", "last_name", "role", "faculty", "department", "is_active")
+    list_filter = ("role", "faculty", "department", "is_active")
+    search_fields = ("username", "email", "first_name", "last_name")
