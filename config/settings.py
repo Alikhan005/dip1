@@ -9,7 +9,7 @@ except Exception:  # pragma: no cover - optional dependency
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Загружаем .env автоматически, чтобы email/БД и другие настройки брались из файла окружения
+# Загружаем .env автоматически
 if load_dotenv:
     for env_path in (BASE_DIR / ".env", BASE_DIR.parent / ".env"):
         if env_path.exists():
@@ -18,15 +18,10 @@ if load_dotenv:
 
 
 def _ensure_sqlite_dir(path_str: str) -> str:
-    """
-    Создает родительские каталоги для SQLite, если путь не :memory:.
-    Возвращает строковый путь без изменений.
-    """
     if path_str and path_str != ":memory:":
         try:
             Path(path_str).parent.mkdir(parents=True, exist_ok=True)
         except Exception:
-            # Не блокируем запуск: пусть дальнейшая ошибка даст понятное сообщение
             pass
     return path_str
 
@@ -104,6 +99,7 @@ INSTALLED_APPS = [
     "syllabi",
     "workflow",
     "ai_checker",
+    "widget_tweaks",  # <-- БИБЛИОТЕКА НА МЕСТЕ, ОТЛИЧНО
 
     # стандартные django
     "django.contrib.admin",
@@ -133,7 +129,7 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],  # папка для общих шаблонов
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -158,7 +154,8 @@ if DATABASE_URL:
 else:
     DB_ENGINE = os.getenv("DB_ENGINE", "django.db.backends.sqlite3")
     if DB_ENGINE.endswith("sqlite3"):
-        DB_NAME = _ensure_sqlite_dir(os.getenv("DB_NAME", str(BASE_DIR / "db.sqlite3")))
+        # ИСПРАВЛЕНИЕ: Используем новое имя файла, чтобы избежать конфликтов со старой базой
+        DB_NAME = _ensure_sqlite_dir(os.getenv("DB_NAME", str(BASE_DIR / "db_new.sqlite3")))
         DATABASES = {
             "default": {
                 "ENGINE": DB_ENGINE,
@@ -199,7 +196,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Локаль
 
-LANGUAGE_CODE = "ru"  # можешь оставить en us если хочешь
+LANGUAGE_CODE = "ru"
 
 TIME_ZONE = "Asia/Almaty"
 
@@ -214,7 +211,7 @@ STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Медиа-файлы (загружаемые пользователями)
+# Медиа-файлы
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 

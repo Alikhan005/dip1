@@ -513,7 +513,7 @@ def syllabus_edit_topics(request, pk):
                 "learning_outcomes": st.learning_outcomes if st else "",
                 "literature_notes": st.literature_notes if st else "",
                 "assessment": st.assessment if st else "",
-                "display_title": topic.get_title(syllabus.main_language),
+                "display_title": getattr(topic, f"title_{syllabus.main_language}", topic.title_ru),
             }
         )
 

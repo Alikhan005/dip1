@@ -62,17 +62,21 @@ class SignupView(CreateView):
     model = get_user_model()
     form_class = SignupForm
     template_name = "registration/signup.html"
-    # ИСПРАВЛЕНИЕ: После регистрации идем сразу в дашборд
     success_url = reverse_lazy("dashboard") 
     extra_context = {"hide_nav": True}
 
     def form_valid(self, form):
         try:
-            # 1. Сохраняем пользователя, но пока не коммитим в базу, чтобы выставить флаги
+            # 1. Сохраняем пользователя, но пока не коммитим в базу
             user = form.save(commit=False)
             user.is_active = True  # Сразу активен
             user.save()
             
+            # --- ВАЖНОЕ ИСПРАВЛЕНИЕ ---
+            # CreateView требует, чтобы self.object был установлен
+            self.object = user 
+            # --------------------------
+
             # Сохраняем m2m (если были теги или группы)
             if hasattr(form, 'save_m2m'):
                 form.save_m2m()
@@ -80,8 +84,6 @@ class SignupView(CreateView):
             logger.info(f"Пользователь создан: {user.username}")
             
             # 2. АВТОМАТИЧЕСКИЙ ВХОД (Auto-Login)
-            # Указываем backend явно, так как user только что создан
-            # Обычно используется ModelBackend, если у тебя нет хитрой кастомной авторизации
             login(self.request, user, backend='django.contrib.auth.backends.ModelBackend')
 
             messages.success(
