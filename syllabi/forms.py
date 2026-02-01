@@ -1,70 +1,63 @@
 from django import forms
 from catalog.models import Course
-
 from .models import Syllabus
 
-
 class SyllabusForm(forms.ModelForm):
-    copy_from = forms.ModelChoiceField(
-        queryset=Syllabus.objects.none(),
-        required=False,
-        label="Использовать прошлый силлабус",
-        help_text="Можно выбрать силлабус этого же курса и взять его структуру.",
-    )
-    prefill_topics = forms.BooleanField(
-        required=False,
-        initial=False,
-        label="Заполнить темы из курса",
-        help_text="Опционально: если планируете работать с темами, система создаст черновик по курсу.",
-    )
-
+    """
+    Основная форма для загрузки силлабуса.
+    Реализует подход 'File-First': преподаватель выбирает курс и сразу грузит файл.
+    """
     class Meta:
         model = Syllabus
         fields = [
             "course",
             "semester",
             "academic_year",
-            "total_weeks",
             "main_language",
             "pdf_file",
         ]
+        widgets = {
+            "course": forms.Select(attrs={"class": "form-control"}),
+            "semester": forms.TextInput(attrs={"class": "form-control", "placeholder": "Fall 2025"}),
+            "academic_year": forms.TextInput(attrs={"class": "form-control", "placeholder": "2025-2026"}),
+            "main_language": forms.Select(attrs={"class": "form-select"}),
+            # Принимаем PDF, Docx, Doc
+            "pdf_file": forms.FileInput(attrs={"class": "form-control", "accept": ".pdf,.docx,.doc"}),
+        }
         labels = {
             "course": "Дисциплина",
-            "pdf_file": "PDF силлабуса (необязательно)",
+            "semester": "Семестр",
+            "academic_year": "Учебный год",
+            "main_language": "Язык силлабуса",
+            "pdf_file": "Файл силлабуса (PDF или Word)",
         }
         help_texts = {
-            "pdf_file": (
-                "Если загрузить PDF, можно отправлять силлабус на согласование без тем. "
-                "Темы и разделы остаются опциональными и доступны для редактирования."
-            ),
+            "pdf_file": "Загрузите готовый файл. Система автоматически отправит его на проверку ИИ.",
         }
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
+        
+        # Самое важное: делаем файл ОБЯЗАТЕЛЬНЫМ
+        self.fields['pdf_file'].required = True
+        
         if user:
-            if getattr(user, "role", None) == "admin":
+            # Фильтрация курсов: Админ видит всё, Препод — только свои
+            if getattr(user, "role", None) in ["admin", "dean", "umu"] or user.is_superuser:
                 self.fields["course"].queryset = Course.objects.all()
-                self.fields["copy_from"].queryset = Syllabus.objects.select_related("course", "creator")
             else:
                 self.fields["course"].queryset = user.courses.all()
-                self.fields["copy_from"].queryset = (
-                    Syllabus.objects.filter(creator=user).select_related("course", "creator")
-                )
+        
         self.fields["course"].empty_label = "Выберите дисциплину"
-        self.fields["copy_from"].empty_label = "Не использовать"
-        self.fields["main_language"].widget = forms.Select(choices=Syllabus.LANG_CHOICES)
-
-    def clean(self):
-        data = super().clean()
-        course = data.get("course")
-        copy_from = data.get("copy_from")
-        if course and copy_from and copy_from.course_id != course.id:
-            self.add_error("copy_from", "Выберите силлабус этого же курса.")
-        return data
 
 
 class SyllabusDetailsForm(forms.ModelForm):
+    """
+    Форма для редактирования деталей.
+    Нужна, если преподаватель захочет поправить метаданные после загрузки,
+    или если мы потом прикрутим парсинг полей из PDF.
+    """
     class Meta:
         model = Syllabus
         fields = [
@@ -120,20 +113,20 @@ class SyllabusDetailsForm(forms.ModelForm):
             "additional_literature": "Дополнительная литература",
         }
         widgets = {
-            "prerequisites": forms.Textarea(attrs={"rows": 2}),
-            "instructor_contacts": forms.Textarea(attrs={"rows": 2}),
-            "class_schedule": forms.Textarea(attrs={"rows": 2}),
-            "course_description": forms.Textarea(attrs={"rows": 4}),
-            "course_goal": forms.Textarea(attrs={"rows": 3}),
-            "learning_outcomes": forms.Textarea(attrs={"rows": 4}),
-            "teaching_methods": forms.Textarea(attrs={"rows": 3}),
-            "teaching_philosophy": forms.Textarea(attrs={"rows": 4}),
-            "course_policy": forms.Textarea(attrs={"rows": 4}),
-            "academic_integrity_policy": forms.Textarea(attrs={"rows": 4}),
-            "inclusive_policy": forms.Textarea(attrs={"rows": 4}),
-            "assessment_policy": forms.Textarea(attrs={"rows": 4}),
-            "grading_scale": forms.Textarea(attrs={"rows": 6}),
-            "appendix": forms.Textarea(attrs={"rows": 4}),
-            "main_literature": forms.Textarea(attrs={"rows": 4}),
-            "additional_literature": forms.Textarea(attrs={"rows": 4}),
+            "prerequisites": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "instructor_contacts": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "class_schedule": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+            "course_description": forms.Textarea(attrs={"rows": 4, "class": "form-control"}),
+            "course_goal": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
+            "learning_outcomes": forms.Textarea(attrs={"rows": 4, "class": "form-control"}),
+            "teaching_methods": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
+            "teaching_philosophy": forms.Textarea(attrs={"rows": 4, "class": "form-control"}),
+            "course_policy": forms.Textarea(attrs={"rows": 4, "class": "form-control"}),
+            "academic_integrity_policy": forms.Textarea(attrs={"rows": 4, "class": "form-control"}),
+            "inclusive_policy": forms.Textarea(attrs={"rows": 4, "class": "form-control"}),
+            "assessment_policy": forms.Textarea(attrs={"rows": 4, "class": "form-control"}),
+            "grading_scale": forms.Textarea(attrs={"rows": 6, "class": "form-control"}),
+            "appendix": forms.Textarea(attrs={"rows": 4, "class": "form-control"}),
+            "main_literature": forms.Textarea(attrs={"rows": 4, "class": "form-control"}),
+            "additional_literature": forms.Textarea(attrs={"rows": 4, "class": "form-control"}),
         }
