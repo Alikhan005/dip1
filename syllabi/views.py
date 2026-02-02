@@ -55,6 +55,9 @@ def _build_literature_lists(topics):
 
 @login_required
 def syllabi_list(request):
+    """
+    Личные силлабусы преподавателя.
+    """
     if request.user.role in ["dean", "umu", "admin"] or request.user.is_superuser:
         base_qs = Syllabus.objects.select_related("course", "creator")
         allow_creator_filter = True
@@ -132,10 +135,16 @@ def syllabi_list(request):
 @login_required
 @role_required("teacher", "program_leader")
 def shared_syllabi_list(request):
-    base_qs = shared_syllabi_queryset(request.user).order_by("-updated_at")
+    """
+    Общие силлабусы (доступные другим).
+    ИСПРАВЛЕНО: Показываем только УТВЕРЖДЕННЫЕ (APPROVED) силлабусы коллег.
+    Черновики и документы на проверке скрыты.
+    """
+    base_qs = shared_syllabi_queryset(request.user).filter(
+        status=Syllabus.Status.APPROVED
+    ).order_by("-updated_at")
 
     q = (request.GET.get("q") or "").strip()
-    status = (request.GET.get("status") or "").strip()
     year = (request.GET.get("year") or "").strip()
     course = (request.GET.get("course") or "").strip()
     creator = (request.GET.get("creator") or "").strip()
@@ -153,8 +162,7 @@ def shared_syllabi_list(request):
             | Q(creator__last_name__icontains=q)
             | Q(creator__username__icontains=q)
         )
-    if status:
-        syllabi = syllabi.filter(status=status)
+    # Фильтр по статусу удален из интерфейса, так как показываем только APPROVED
     if year:
         syllabi = syllabi.filter(academic_year=year)
     if course:
@@ -185,12 +193,11 @@ def shared_syllabi_list(request):
             "syllabi": syllabi,
             "filters": {
                 "q": q,
-                "status": status,
                 "year": year,
                 "course": course,
                 "creator": creator,
             },
-            "status_options": Syllabus.Status.choices,
+            # status_options удален, так как выбора нет
             "year_options": year_options,
             "course_options": course_options,
             "creator_options": creator_options,
@@ -202,9 +209,8 @@ def shared_syllabi_list(request):
 @role_required("teacher", "program_leader")
 def syllabus_create(request):
     """
-    Создание силлабуса.
-    Логика упрощена: File-First.
-    Преподаватель загружает файл, и он сразу отправляется на проверку ИИ.
+    Создание силлабуса. File-First подход.
+    Загрузка файла сразу инициирует проверку ИИ.
     """
     ensure_default_courses(request.user)
     
@@ -223,14 +229,13 @@ def syllabus_create(request):
     else:
         form = SyllabusForm(user=request.user)
     
-    # Если у преподавателя нет курсов, предупреждаем
     if not form.fields["course"].queryset.exists():
         messages.warning(request, "У вас нет доступных дисциплин. Обратитесь к администратору.")
 
     return render(
         request,
         "syllabi/syllabus_form.html",
-        {"form": form}, # Убрали has_copy_from, так как больше не копируем
+        {"form": form},
     )
 
 
@@ -248,7 +253,7 @@ def syllabus_detail(request, pk):
     is_umu = role == "umu" or is_admin_like
     is_teacher_like = request.user.is_teacher_like
 
-    # Редактирование тем отключено логически, но флаг оставим False, чтобы скрыть кнопки в шаблоне
+    # Ручное редактирование отключено
     can_edit_topics = False 
     
     topics = list(
@@ -260,10 +265,9 @@ def syllabus_detail(request, pk):
     derived_main_literature, derived_additional_literature = _build_literature_lists(topics)
     
     # Кнопки Workflow
-    can_send_ai = (
-        is_creator 
-        and syllabus.status in [Syllabus.Status.DRAFT, Syllabus.Status.CORRECTION]
-    )
+    # can_send_ai теперь не нужен в шаблоне, так как проверка автоматическая,
+    # но оставим False для совместимости, чтобы скрыть старые кнопки
+    can_send_ai = False
 
     can_submit_dean = (
         is_creator
@@ -321,8 +325,7 @@ def syllabus_detail(request, pk):
 @role_required("teacher", "program_leader")
 def syllabus_edit_topics(request, pk):
     """
-    Страница отключена по требованию (все правки через файл).
-    Редиректит на детали с сообщением.
+    Отключено. Редирект на просмотр.
     """
     messages.info(request, "Ручное редактирование тем отключено. Пожалуйста, внесите изменения в файл и загрузите его заново.")
     return redirect("syllabus_detail", pk=pk)
@@ -332,8 +335,7 @@ def syllabus_edit_topics(request, pk):
 @role_required("teacher", "program_leader")
 def syllabus_edit_details(request, pk):
     """
-    Страница отключена по требованию (все правки через файл).
-    Редиректит на детали с сообщением.
+    Отключено. Редирект на просмотр.
     """
     messages.info(request, "Ручное редактирование полей отключено. Пожалуйста, внесите изменения в файл и загрузите его заново.")
     return redirect("syllabus_detail", pk=pk)
@@ -351,6 +353,9 @@ def syllabus_pdf(request, pk):
 
 @login_required
 def send_to_ai_check(request, pk):
+    """
+    Вспомогательный метод, если нужно принудительно пнуть ИИ.
+    """
     syllabus = get_object_or_404(Syllabus, pk=pk)
     
     if request.user != syllabus.creator:
@@ -409,11 +414,10 @@ def syllabus_upload_file(request, pk):
         syllabus.pdf_file.save(uploaded.name, uploaded, save=False)
         syllabus.version_number += 1
         
-        # Если автор загрузил новый файл во время доработки,
-        # автоматически отправляем на повторную проверку ИИ.
+        # Перезапуск проверки при обновлении файла
         if is_creator and syllabus.status in [Syllabus.Status.CORRECTION, Syllabus.Status.DRAFT]:
             syllabus.status = Syllabus.Status.AI_CHECK
-            syllabus.ai_feedback = ""  # Очищаем старый фидбек
+            syllabus.ai_feedback = ""
             messages.success(request, "Файл обновлен! Силлабус автоматически отправлен на повторную проверку ИИ.")
         
         syllabus.save()

@@ -1,158 +1,179 @@
 import logging
-
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied
 from django.core.mail import send_mail
 
 from syllabi.models import Syllabus
-from syllabi.services import validate_syllabus_structure
 from .models import SyllabusAuditLog, SyllabusStatusLog
 
 logger = logging.getLogger(__name__)
 
-
 def _status_label(status: str) -> str:
+    """Получает человекочитаемое название статуса."""
     try:
         return Syllabus.Status(status).label
     except Exception:
         return status
 
-
-def _collect_role_emails(role: str) -> list[str]:
+def _collect_role_emails(role_name: str) -> list[str]:
+    """Собирает email-адреса пользователей по роли или группе."""
     User = get_user_model()
-    qs = User.objects.filter(role=role, is_active=True).exclude(email="")
-    if hasattr(User, "email_verified"):
-        qs = qs.filter(email_verified=True)
-    return list(qs.values_list("email", flat=True))
+    # Ищем пользователей, у которых role совпадает ИЛИ которые в группе с таким названием
+    qs = User.objects.filter(is_active=True).exclude(email="")
+    
+    # Поиск по полю role (если оно есть в модели)
+    if hasattr(User, 'role'):
+        qs_role = qs.filter(role=role_name)
+    else:
+        qs_role = qs.none()
+
+    # Поиск по группам (стандарт Django)
+    qs_group = qs.filter(groups__name__icontains=role_name)
+
+    # Объединяем результаты
+    final_qs = (qs_role | qs_group).distinct()
+    return list(final_qs.values_list("email", flat=True))
 
 
 def _safe_send_mail(subject: str, message: str, recipients: list[str]) -> None:
+    """Безопасная отправка почты."""
     if not recipients:
         return
-    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "") or None
+    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@almausyllabus.kz")
     try:
         send_mail(subject, message, from_email, recipients, fail_silently=False)
-    except Exception:
-        logger.exception("Failed to send workflow notification email.")
+    except Exception as e:
+        logger.error(f"Failed to send email: {e}")
 
 
 def change_status(user, syllabus: Syllabus, new_status: str, comment: str = ""):
+    """
+    Главная функция управления переходами статусов.
+    """
     old_status = syllabus.status
     comment = (comment or "").strip()
-    is_admin_like = getattr(user, "is_admin_like", False) or user.role == "admin" or user.is_superuser
-    is_dean = user.role == "dean" or is_admin_like
-    is_umu = user.role == "umu" or is_admin_like
-    is_teacher_like = user.is_teacher_like
-    is_creator = user == syllabus.creator
+
+    # --- 1. ОПРЕДЕЛЕНИЕ ПРАВ ---
+    # Пользователь считается админом, если он superuser или staff
+    is_admin = user.is_superuser or user.is_staff
+    
+    # Получаем список групп пользователя
+    user_groups = list(user.groups.values_list('name', flat=True))
+    user_role = getattr(user, 'role', '')
+
+    # Проверка на Декана: Админ ИЛИ роль 'dean' ИЛИ группа 'Deans'
+    is_dean = is_admin or (user_role == 'dean') or ('Deans' in user_groups)
+    
+    # Проверка на УМУ: Админ ИЛИ роль 'umu' ИЛИ группа 'UMU'
+    is_umu = is_admin or (user_role == 'umu') or ('UMU' in user_groups)
+    
+    is_creator = (user == syllabus.creator)
 
     if new_status == old_status:
         return syllabus
 
-    if new_status == Syllabus.Status.SUBMITTED_DEAN:
-        if user != syllabus.creator:
-            raise PermissionDenied("Только автор силлабуса может отправить его декану.")
-        if not is_teacher_like:
-            raise PermissionDenied("Отправлять декану может только преподаватель.")
-        if old_status not in [Syllabus.Status.DRAFT, Syllabus.Status.REJECTED]:
-            raise PermissionDenied("Этот силлабус уже отправлен на согласование.")
-        errors = validate_syllabus_structure(syllabus)
-        if errors:
-            raise ValueError("Нельзя отправить на согласование: " + "; ".join(errors))
+    # --- 2. ЛОГИКА ПЕРЕХОДОВ ---
 
-    if new_status == Syllabus.Status.APPROVED_DEAN:
+    # А) ОТПРАВКА ДЕКАНУ (Преподаватель -> Декан)
+    if new_status == Syllabus.Status.REVIEW_DEAN:
+        # Отправлять может автор или админ
+        if not (is_creator or is_admin):
+            raise PermissionDenied("Только автор может отправить силлабус на проверку.")
+        
+        # Разрешаем отправку из статусов: Черновик, Доработка, Проверка ИИ
+        allowed_prev = [Syllabus.Status.DRAFT, Syllabus.Status.CORRECTION, Syllabus.Status.AI_CHECK]
+        if old_status not in allowed_prev and not is_admin:
+             # Если статус уже REVIEW_DEAN, ничего страшного, пропускаем
+             if old_status != Syllabus.Status.REVIEW_DEAN:
+                raise PermissionDenied("Неверный порядок статусов.")
+
+    # Б) СОГЛАСОВАНИЕ ДЕКАНА -> ПЕРЕДАЧА В УМУ
+    elif new_status == Syllabus.Status.REVIEW_UMU:
         if not is_dean:
-            raise PermissionDenied("Только декан может утверждать.")
-        if is_creator:
-            raise PermissionDenied("Нельзя утверждать собственный силлабус.")
-        if old_status != Syllabus.Status.SUBMITTED_DEAN:
-            raise PermissionDenied("Силлабус должен быть отправлен декану.")
+            raise PermissionDenied("Только Декан может передать силлабус в УМУ.")
+        
+        # Проверка: должен быть на этапе "У Декана"
+        if old_status != Syllabus.Status.REVIEW_DEAN and not is_admin:
+            raise PermissionDenied("Силлабус должен находиться на проверке у Декана.")
 
-    if new_status == Syllabus.Status.REJECTED:
-        if not comment:
-            raise ValueError("Комментарий обязателен при отклонении.")
-        if is_dean:
-            if old_status != Syllabus.Status.SUBMITTED_DEAN:
-                raise PermissionDenied("Силлабус должен быть отправлен декану.")
-            if is_creator:
-                raise PermissionDenied("Нельзя отклонять собственный силлабус.")
-        elif is_umu:
-            if old_status != Syllabus.Status.SUBMITTED_UMU:
-                raise PermissionDenied("Силлабус должен быть отправлен в УМУ.")
-            if is_creator:
-                raise PermissionDenied("Нельзя отклонять собственный силлабус.")
-        else:
-            raise PermissionDenied("Отклонять могут только декан или УМУ.")
-
-    if new_status == Syllabus.Status.SUBMITTED_UMU:
-        if user != syllabus.creator:
-            raise PermissionDenied("Отправить в УМУ может только автор силлабуса.")
-        if not is_teacher_like:
-            raise PermissionDenied("Отправлять в УМУ может только преподаватель.")
-        if old_status != Syllabus.Status.APPROVED_DEAN:
-            raise PermissionDenied("Сначала силлабус должен быть утвержден деканом.")
-        errors = validate_syllabus_structure(syllabus)
-        if errors:
-            raise ValueError("Нельзя отправить в УМУ: " + "; ".join(errors))
-
-    if new_status == Syllabus.Status.APPROVED_UMU:
+    # В) ФИНАЛЬНОЕ УТВЕРЖДЕНИЕ (УМУ)
+    elif new_status == Syllabus.Status.APPROVED:
         if not is_umu:
-            raise PermissionDenied("Только УМУ может финально утверждать силлабус.")
-        if is_creator:
-            raise PermissionDenied("Нельзя утверждать собственный силлабус.")
-        if old_status != Syllabus.Status.SUBMITTED_UMU:
-            raise PermissionDenied("Силлабус должен быть отправлен в УМУ.")
+            raise PermissionDenied("Только сотрудник УМУ может утвердить силлабус.")
+        
+        if old_status != Syllabus.Status.REVIEW_UMU and not is_admin:
+            raise PermissionDenied("Силлабус должен находиться на проверке в УМУ.")
 
+    # Г) ВОЗВРАТ НА ДОРАБОТКУ
+    elif new_status == Syllabus.Status.CORRECTION:
+        if not (is_dean or is_umu):
+            raise PermissionDenied("У вас нет прав возвращать силлабус.")
+        
+        if not comment:
+            raise ValueError("Укажите причину возврата (комментарий обязателен).")
+        
+        # Записываем, кто вернул
+        role_label = "Деканат" if is_dean else "УМУ"
+        syllabus.ai_feedback = f"[{role_label}]: {comment}"
+
+    else:
+        # Если статус неизвестен
+        raise ValueError(f"Неизвестный статус: {new_status}")
+
+    # --- 3. СОХРАНЕНИЕ ---
     syllabus.status = new_status
-    syllabus.save(update_fields=["status"])
+    syllabus.save(update_fields=["status", "ai_feedback"])
 
-    SyllabusStatusLog.objects.create(
-        syllabus=syllabus,
-        from_status=old_status,
-        to_status=new_status,
-        changed_by=user,
-        comment=comment,
-    )
-
-    SyllabusAuditLog.objects.create(
-        syllabus=syllabus,
-        actor=user,
-        action=SyllabusAuditLog.Action.STATUS_CHANGED,
-        metadata={"from_status": old_status, "to_status": new_status, "comment": comment},
-        message=f"Статус изменен: {_status_label(old_status)} -> {_status_label(new_status)}",
-    )
-
-    subject = None
-    message = None
-    recipients: list[str] = []
-    if new_status == Syllabus.Status.SUBMITTED_DEAN:
-        recipients = _collect_role_emails("dean")
-        subject = f"Силлабус отправлен декану: {syllabus.course.code} {syllabus.semester}"
-        message = (
-            f"Силлабус {syllabus.course.code} {syllabus.semester} отправлен на согласование.\n"
-            f"Автор: {syllabus.creator.get_full_name() or syllabus.creator.username}\n"
-            f"Статус: {_status_label(new_status)}"
+    # --- 4. ЛОГИРОВАНИЕ ---
+    try:
+        SyllabusStatusLog.objects.create(
+            syllabus=syllabus,
+            from_status=old_status,
+            to_status=new_status,
+            changed_by=user,
+            comment=comment,
         )
-    elif new_status == Syllabus.Status.SUBMITTED_UMU:
-        recipients = _collect_role_emails("umu")
-        subject = f"Силлабус отправлен в УМУ: {syllabus.course.code} {syllabus.semester}"
-        message = (
-            f"Силлабус {syllabus.course.code} {syllabus.semester} отправлен в УМУ.\n"
-            f"Автор: {syllabus.creator.get_full_name() or syllabus.creator.username}\n"
-            f"Статус: {_status_label(new_status)}"
+
+        SyllabusAuditLog.objects.create(
+            syllabus=syllabus,
+            actor=user,
+            action=SyllabusAuditLog.Action.STATUS_CHANGED,
+            metadata={"from": old_status, "to": new_status},
+            message=f"Переход: {_status_label(old_status)} -> {_status_label(new_status)}"
         )
-    elif new_status in {Syllabus.Status.APPROVED_DEAN, Syllabus.Status.APPROVED_UMU, Syllabus.Status.REJECTED}:
+    except Exception:
+        # Логи не должны ломать основной процесс
+        pass
+
+    # --- 5. УВЕДОМЛЕНИЯ (EMAIL) ---
+    subject = ""
+    message = ""
+    recipients = []
+
+    if new_status == Syllabus.Status.REVIEW_DEAN:
+        recipients = _collect_role_emails("Deans")
+        subject = f"📝 На проверку: {syllabus.course.code}"
+        message = f"Силлабус {syllabus.course.code} отправлен на проверку Декану."
+
+    elif new_status == Syllabus.Status.REVIEW_UMU:
+        recipients = _collect_role_emails("UMU")
+        subject = f"🛡️ Согласовано Деканом: {syllabus.course.code}"
+        message = f"Декан согласовал силлабус {syllabus.course.code}. Ожидает проверки УМУ."
+
+    elif new_status == Syllabus.Status.CORRECTION:
         if syllabus.creator.email:
             recipients = [syllabus.creator.email]
-            subject = f"Статус силлабуса изменен: {_status_label(new_status)}"
-            message = (
-                f"Силлабус {syllabus.course.code} {syllabus.semester}.\n"
-                f"Новый статус: {_status_label(new_status)}.\n"
-            )
-            if comment:
-                message += f"Комментарий: {comment}\n"
+            subject = f"⚠️ Требуются правки: {syllabus.course.code}"
+            message = f"Ваш силлабус возвращен на доработку.\nКомментарий: {comment}"
 
-    if subject and message and recipients:
+    elif new_status == Syllabus.Status.APPROVED:
+        if syllabus.creator.email:
+            recipients = [syllabus.creator.email]
+            subject = f"✅ Утверждено: {syllabus.course.code}"
+            message = f"Ваш силлабус {syllabus.course.code} полностью утвержден!"
+
+    if recipients:
         _safe_send_mail(subject, message, recipients)
 
     return syllabus

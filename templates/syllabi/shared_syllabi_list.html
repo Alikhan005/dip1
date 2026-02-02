@@ -1,47 +1,26 @@
 {% extends "base.html" %}
-{% block title %}Общие силлабусы{% endblock %}
+{% block title %}Банк силлабусов{% endblock %}
+
 {% block content %}
-<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
   <div>
-    <h1 class="text-2xl font-semibold">Общие силлабусы</h1>
-    <p class="text-sm text-gray-600">Показаны силлабусы по похожим дисциплинам.</p>
+    <h1 class="text-2xl font-bold text-slate-800">Банк силлабусов</h1>
+    <p class="text-slate-500 text-sm mt-1">База знаний утвержденных документов для обмена опытом.</p>
   </div>
-  <a href="{% url 'syllabi_list' %}" class="btn-secondary">Мои силлабусы</a>
+  <a href="{% url 'syllabi_list' %}" class="btn-secondary text-sm flex items-center gap-2">
+    <i class="fas fa-arrow-left"></i> Мои документы
+  </a>
 </div>
 
-<form method="get" class="card p-4 mb-6">
+<form method="get" class="card p-4 mb-6 bg-white shadow-sm border border-slate-200">
   <div class="grid gap-4 md:grid-cols-4">
     <div>
-      <label for="filter-q">Поиск</label>
-      <input
-        id="filter-q"
-        type="text"
-        name="q"
-        value="{{ filters.q }}"
-        placeholder="Курс, код, автор, семестр"
-      >
+      <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Поиск</label>
+      <input type="text" name="q" value="{{ filters.q }}" placeholder="Код, курс, автор..." class="form-control w-full border-slate-300 rounded-md text-sm">
     </div>
     <div>
-      <label for="filter-status">Статус</label>
-      <select id="filter-status" name="status">
-        <option value="">Все статусы</option>
-        {% for value, label in status_options %}
-          <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div>
-      <label for="filter-year">Учебный год</label>
-      <select id="filter-year" name="year">
-        <option value="">Все годы</option>
-        {% for item in year_options %}
-          <option value="{{ item }}" {% if filters.year == item %}selected{% endif %}>{{ item }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div>
-      <label for="filter-course">Курс</label>
-      <select id="filter-course" name="course">
+      <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Курс</label>
+      <select name="course" class="form-select w-full border-slate-300 rounded-md text-sm">
         <option value="">Все курсы</option>
         {% for item in course_options %}
           <option value="{{ item.course_id }}" {% if filters.course == item.course_id|stringformat:"s" %}selected{% endif %}>
@@ -50,9 +29,9 @@
         {% endfor %}
       </select>
     </div>
-    <div class="md:col-span-2">
-      <label for="filter-creator">Автор</label>
-      <select id="filter-creator" name="creator">
+    <div>
+      <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Автор</label>
+      <select name="creator" class="form-select w-full border-slate-300 rounded-md text-sm">
         <option value="">Все авторы</option>
         {% for creator in creator_options %}
           <option value="{{ creator.id }}" {% if filters.creator == creator.id|stringformat:"s" %}selected{% endif %}>
@@ -61,51 +40,61 @@
         {% endfor %}
       </select>
     </div>
-  </div>
-  <div class="flex flex-wrap gap-2 mt-4">
-    <button class="btn-primary" type="submit">Применить</button>
-    <a href="{% url 'shared_syllabi_list' %}" class="btn-secondary">Сбросить</a>
+    <div class="flex items-end gap-2">
+      <button class="btn-primary w-full text-sm" type="submit">Найти</button>
+      <a href="{% url 'shared_syllabi_list' %}" class="btn-secondary w-auto text-sm px-3">✕</a>
+    </div>
   </div>
 </form>
 
-<table class="table">
-  <thead>
-    <tr class="border-b">
-      <th class="p-2 text-left">Код</th>
-      <th class="p-2 text-left">Семестр</th>
-      <th class="p-2 text-left">Автор</th>
-      <th class="p-2 text-left">Статус</th>
-      <th class="p-2 text-left">PDF</th>
-      <th class="p-2 text-left"></th>
-    </tr>
-  </thead>
-  <tbody>
-  {% for syllabus in syllabi %}
-    <tr class="border-b align-middle">
-      <td class="p-2">{{ syllabus.course.code }}</td>
-      <td class="p-2">{{ syllabus.semester }} / {{ syllabus.academic_year }}</td>
-      <td class="p-2 text-sm">
-        {{ syllabus.creator.get_full_name|default:syllabus.creator.username }}
-      </td>
-      <td class="p-2">
-        <span class="status-pill status-pill--{{ syllabus.status }}">{{ syllabus.get_status_display }}</span>
-      </td>
-      <td class="p-2 text-sm">
-        {% if syllabus.pdf_file %}
-          <a href="{{ syllabus.pdf_file.url }}" class="link">Скачать</a>
-        {% else %}
-          <span class="text-gray-500">Нет файла</span>
-        {% endif %}
-      </td>
-      <td class="p-2">
-        <a href="{% url 'syllabus_detail' syllabus.pk %}" class="link">Открыть</a>
-      </td>
-    </tr>
-  {% empty %}
-    <tr>
-      <td colspan="6" class="p-4">Общих силлабусов по вашим предметам пока нет.</td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
+<div class="card overflow-hidden bg-white shadow-sm border border-slate-200 rounded-lg">
+  <table class="w-full text-left text-sm">
+    <thead class="bg-slate-50 text-slate-500 font-semibold border-b">
+      <tr>
+        <th class="p-4">Дисциплина</th>
+        <th class="p-4">Автор</th>
+        <th class="p-4">Год/Семестр</th>
+        <th class="p-4 text-right">Действия</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+    {% for syllabus in syllabi %}
+      <tr class="hover:bg-slate-50 transition">
+        <td class="p-4">
+          <div class="font-bold text-slate-800">{{ syllabus.course.code }}</div>
+          <div class="text-xs text-slate-500">{{ syllabus.course.title_ru|truncatechars:60 }}</div>
+        </td>
+        <td class="p-4 text-slate-700">
+          <div class="flex items-center gap-2">
+             <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
+                 {{ syllabus.creator.first_name|first|default:"U" }}
+             </div>
+             {{ syllabus.creator.get_full_name|default:syllabus.creator.username }}
+          </div>
+        </td>
+        <td class="p-4 text-slate-600">
+          {{ syllabus.academic_year }} ({{ syllabus.semester }})
+        </td>
+        <td class="p-4 text-right flex justify-end gap-3 items-center">
+          {% if syllabus.pdf_file %}
+            <a href="{{ syllabus.pdf_file.url }}" target="_blank" class="text-slate-400 hover:text-blue-600 p-1" title="Скачать PDF">
+               <i class="fas fa-file-pdf"></i>
+            </a>
+          {% endif %}
+          <a href="{% url 'syllabus_detail' syllabus.pk %}" class="btn-secondary px-3 py-1 text-xs">
+            Открыть
+          </a>
+        </td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="4" class="p-8 text-center text-slate-500">
+          <div class="text-4xl mb-2 text-slate-300">🔍</div>
+          Нет доступных силлабусов по вашему запросу.
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% endblock %}
