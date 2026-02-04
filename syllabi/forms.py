@@ -4,9 +4,17 @@ from .models import Syllabus
 
 class SyllabusForm(forms.ModelForm):
     """
-    Основная форма для загрузки силлабуса.
-    Реализует подход 'File-First': преподаватель выбирает курс и сразу грузит файл.
+    Основная форма для создания/загрузки силлабуса.
+    Используется и для Конструктора (без файла), и для Импорта (с файлом).
     """
+    # Явно указываем required=False, чтобы Конструктор мог работать без загрузки файла
+    pdf_file = forms.FileField(
+        required=False, 
+        widget=forms.FileInput(attrs={"class": "form-control", "accept": ".pdf,.docx,.doc"}),
+        label="Файл силлабуса (PDF или Word)",
+        help_text="Загрузите готовый файл. Система автоматически отправит его на проверку ИИ."
+    )
+
     class Meta:
         model = Syllabus
         fields = [
@@ -18,29 +26,23 @@ class SyllabusForm(forms.ModelForm):
         ]
         widgets = {
             "course": forms.Select(attrs={"class": "form-control"}),
-            "semester": forms.TextInput(attrs={"class": "form-control", "placeholder": "Fall 2025"}),
+            "semester": forms.TextInput(attrs={"class": "form-control", "placeholder": "Например: Осень 2026"}),
             "academic_year": forms.TextInput(attrs={"class": "form-control", "placeholder": "2025-2026"}),
             "main_language": forms.Select(attrs={"class": "form-select"}),
-            # Принимаем PDF, Docx, Doc
-            "pdf_file": forms.FileInput(attrs={"class": "form-control", "accept": ".pdf,.docx,.doc"}),
         }
         labels = {
             "course": "Дисциплина",
             "semester": "Семестр",
             "academic_year": "Учебный год",
             "main_language": "Язык силлабуса",
-            "pdf_file": "Файл силлабуса (PDF или Word)",
-        }
-        help_texts = {
-            "pdf_file": "Загрузите готовый файл. Система автоматически отправит его на проверку ИИ.",
         }
 
     def __init__(self, *args, **kwargs):
         user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
         
-        # Самое важное: делаем файл ОБЯЗАТЕЛЬНЫМ
-        self.fields['pdf_file'].required = True
+        # Мы убрали принудительное self.fields['pdf_file'].required = True
+        # Теперь валидация (нужен файл или нет) управляется логикой во views.py
         
         if user:
             # Фильтрация курсов: Админ видит всё, Препод — только свои
@@ -55,8 +57,7 @@ class SyllabusForm(forms.ModelForm):
 class SyllabusDetailsForm(forms.ModelForm):
     """
     Форма для редактирования деталей.
-    Нужна, если преподаватель захочет поправить метаданные после загрузки,
-    или если мы потом прикрутим парсинг полей из PDF.
+    Нужна, если преподаватель захочет поправить метаданные после загрузки.
     """
     class Meta:
         model = Syllabus

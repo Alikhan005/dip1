@@ -2,18 +2,17 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
-from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 
 from accounts.decorators import role_required
 from catalog.services import ensure_default_courses
-from .forms import SyllabusForm, SyllabusDetailsForm
-from .models import Syllabus, SyllabusTopic, SyllabusRevision
-from .permissions import can_view_syllabus, shared_syllabi_queryset
-from .services import generate_syllabus_pdf
 from workflow.models import SyllabusAuditLog
 from workflow.services import change_status
+from .forms import SyllabusForm
+from .models import Syllabus, SyllabusRevision
+from .permissions import can_view_syllabus, shared_syllabi_queryset
+from .services import generate_syllabus_pdf
 
 
 def _can_view_syllabus(user, syllabus: Syllabus) -> bool:
@@ -55,9 +54,7 @@ def _build_literature_lists(topics):
 
 @login_required
 def syllabi_list(request):
-    """
-    Личные силлабусы преподавателя.
-    """
+    """Личные силлабусы преподавателя."""
     if request.user.role in ["dean", "umu", "admin"] or request.user.is_superuser:
         base_qs = Syllabus.objects.select_related("course", "creator")
         allow_creator_filter = True
@@ -93,36 +90,21 @@ def syllabi_list(request):
     if allow_creator_filter and creator:
         syllabi = syllabi.filter(creator_id=creator)
 
-    year_options = (
-        base_qs.values_list("academic_year", flat=True)
-        .distinct()
-        .order_by("-academic_year")
-    )
-    course_options = (
-        base_qs.values("course_id", "course__code")
-        .distinct()
-        .order_by("course__code")
-    )
+    year_options = base_qs.values_list("academic_year", flat=True).distinct().order_by("-academic_year")
+    course_options = base_qs.values("course_id", "course__code").distinct().order_by("course__code")
+    
     creator_options = []
     if allow_creator_filter:
         creator_ids = base_qs.values_list("creator_id", flat=True).distinct()
         User = get_user_model()
-        creator_options = list(
-            User.objects.filter(id__in=creator_ids).order_by("last_name", "first_name", "username")
-        )
+        creator_options = list(User.objects.filter(id__in=creator_ids).order_by("last_name", "first_name", "username"))
 
     return render(
         request,
         "syllabi/syllabi_list.html",
         {
             "syllabi": syllabi,
-            "filters": {
-                "q": q,
-                "status": status,
-                "year": year,
-                "course": course,
-                "creator": creator,
-            },
+            "filters": {"q": q, "status": status, "year": year, "course": course, "creator": creator},
             "status_options": Syllabus.Status.choices,
             "year_options": year_options,
             "course_options": course_options,
@@ -135,13 +117,8 @@ def syllabi_list(request):
 @login_required
 @role_required("teacher", "program_leader")
 def shared_syllabi_list(request):
-    """
-    Общие силлабусы (доступные другим).
-    Показываем только УТВЕРЖДЕННЫЕ (APPROVED) силлабусы коллег.
-    """
-    base_qs = shared_syllabi_queryset(request.user).filter(
-        status=Syllabus.Status.APPROVED
-    ).order_by("-updated_at")
+    """Общие силлабусы (только утвержденные)."""
+    base_qs = shared_syllabi_queryset(request.user).filter(status=Syllabus.Status.APPROVED).order_by("-updated_at")
 
     q = (request.GET.get("q") or "").strip()
     year = (request.GET.get("year") or "").strip()
@@ -168,33 +145,19 @@ def shared_syllabi_list(request):
     if creator:
         syllabi = syllabi.filter(creator_id=creator)
 
-    year_options = (
-        base_qs.values_list("academic_year", flat=True)
-        .distinct()
-        .order_by("-academic_year")
-    )
-    course_options = (
-        base_qs.values("course_id", "course__code")
-        .distinct()
-        .order_by("course__code")
-    )
+    year_options = base_qs.values_list("academic_year", flat=True).distinct().order_by("-academic_year")
+    course_options = base_qs.values("course_id", "course__code").distinct().order_by("course__code")
+    
     creator_ids = base_qs.values_list("creator_id", flat=True).distinct()
     User = get_user_model()
-    creator_options = list(
-        User.objects.filter(id__in=creator_ids).order_by("last_name", "first_name", "username")
-    )
+    creator_options = list(User.objects.filter(id__in=creator_ids).order_by("last_name", "first_name", "username"))
 
     return render(
         request,
         "syllabi/shared_syllabi_list.html",
         {
             "syllabi": syllabi,
-            "filters": {
-                "q": q,
-                "year": year,
-                "course": course,
-                "creator": creator,
-            },
+            "filters": {"q": q, "year": year, "course": course, "creator": creator},
             "year_options": year_options,
             "course_options": course_options,
             "creator_options": creator_options,
@@ -203,7 +166,7 @@ def shared_syllabi_list(request):
 
 
 # =========================================================
-# НОВЫЕ ФУНКЦИИ ДЛЯ РАЗДЕЛЕНИЯ (КОНСТРУКТОР vs ИМПОРТ)
+#  НОВЫЕ ФУНКЦИИ (КОНСТРУКТОР vs ИМПОРТ)
 # =========================================================
 
 @login_required
@@ -211,22 +174,17 @@ def shared_syllabi_list(request):
 def create_constructor_view(request):
     """
     Сценарий 1: КОНСТРУКТОР.
-    Создание силлабуса вручную, без загрузки файла.
-    Статус сразу: DRAFT (Черновик), чтобы можно было добавлять темы.
+    Ручное создание. Статус = DRAFT.
     """
     ensure_default_courses(request.user)
 
     if request.method == "POST":
-        # Передаем только POST данные, FILES не нужны
         form = SyllabusForm(request.POST, user=request.user)
         if form.is_valid():
             syllabus = form.save(commit=False)
             syllabus.creator = request.user
-            
-            # Ставим статус "Черновик", так как это ручное создание
-            syllabus.status = Syllabus.Status.DRAFT
+            syllabus.status = Syllabus.Status.DRAFT  # Черновик
             syllabus.save()
-            
             messages.success(request, "Силлабус создан. Теперь сформируйте структуру из тем.")
             return redirect("syllabus_detail", pk=syllabus.pk)
     else:
@@ -235,11 +193,8 @@ def create_constructor_view(request):
     if not form.fields["course"].queryset.exists():
         messages.warning(request, "У вас нет доступных дисциплин. Обратитесь к администратору.")
 
-    return render(
-        request,
-        "syllabi/create_constructor.html",  # Отдельный шаблон для конструктора
-        {"form": form},
-    )
+    # Используем шаблон БЕЗ поля загрузки файла
+    return render(request, "syllabi/create_constructor.html", {"form": form})
 
 
 @login_required
@@ -247,8 +202,7 @@ def create_constructor_view(request):
 def upload_pdf_view(request):
     """
     Сценарий 2: ИМПОРТ ФАЙЛА.
-    Загрузка готового PDF/Word.
-    Статус сразу: AI_CHECK (На проверке ИИ).
+    Загрузка PDF. Статус = AI_CHECK.
     """
     ensure_default_courses(request.user)
 
@@ -258,14 +212,12 @@ def upload_pdf_view(request):
             syllabus = form.save(commit=False)
             syllabus.creator = request.user
             
-            # Проверяем, загрузил ли пользователь файл
+            # Проверка наличия файла
             if not syllabus.pdf_file:
                 messages.error(request, "Для проверки ИИ необходимо загрузить файл!")
             else:
-                # АВТОМАТИЗАЦИЯ: Сразу ставим статус "На проверке ИИ"
-                syllabus.status = Syllabus.Status.AI_CHECK
+                syllabus.status = Syllabus.Status.AI_CHECK # На проверку ИИ
                 syllabus.save()
-                
                 messages.success(request, "Файл загружен! Запущена автоматическая проверка ИИ.")
                 return redirect("syllabus_detail", pk=syllabus.pk)
     else:
@@ -274,11 +226,8 @@ def upload_pdf_view(request):
     if not form.fields["course"].queryset.exists():
         messages.warning(request, "У вас нет доступных дисциплин. Обратитесь к администратору.")
 
-    return render(
-        request,
-        "syllabi/upload_pdf.html",  # Отдельный шаблон для загрузки
-        {"form": form},
-    )
+    # Используем шаблон С полем загрузки файла
+    return render(request, "syllabi/upload_pdf.html", {"form": form})
 
 # =========================================================
 
@@ -297,9 +246,6 @@ def syllabus_detail(request, pk):
     is_umu = role == "umu" or is_admin_like
     is_teacher_like = request.user.is_teacher_like
 
-    # Ручное редактирование отключено
-    can_edit_topics = False 
-    
     topics = list(
         syllabus.syllabus_topics.select_related("topic")
         .prefetch_related("topic__literature", "topic__questions")
@@ -308,30 +254,21 @@ def syllabus_detail(request, pk):
     has_topics = bool(topics)
     derived_main_literature, derived_additional_literature = _build_literature_lists(topics)
     
-    # can_send_ai не нужен в шаблоне, так как проверка автоматическая
-    can_send_ai = False
-
     can_submit_dean = (
         is_creator
         and syllabus.status in [Syllabus.Status.DRAFT, Syllabus.Status.CORRECTION]
         and is_teacher_like
     )
-    
     can_approve_dean = (
         syllabus.status == Syllabus.Status.REVIEW_DEAN
         and is_dean
         and not is_creator
     )
-    
-    can_submit_umu = False
-
     can_approve_umu = (
         syllabus.status == Syllabus.Status.REVIEW_UMU
         and is_umu
         and not is_creator
     )
-    can_reject_umu = can_approve_umu
-    
     can_upload = (is_creator and not is_frozen and is_teacher_like) or (is_umu and is_frozen)
     can_share = is_creator and is_teacher_like
 
@@ -343,22 +280,17 @@ def syllabus_detail(request, pk):
             "topics": topics,
             "has_topics": has_topics,
             "is_frozen": is_frozen,
-            "can_edit_topics": can_edit_topics,
-            "can_send_ai": can_send_ai,
             "can_submit_dean": can_submit_dean,
             "can_approve_dean": can_approve_dean,
-            "can_submit_umu": can_submit_umu,
             "can_approve_umu": can_approve_umu,
-            "can_reject_umu": can_reject_umu,
+            "can_reject_umu": can_approve_umu,
             "can_upload": can_upload,
             "can_share": can_share,
             "is_creator": is_creator,
             "learning_outcomes_list": _split_lines(syllabus.learning_outcomes),
             "teaching_methods_list": _split_lines(syllabus.teaching_methods),
-            "main_literature_list": _split_lines(syllabus.main_literature)
-            or derived_main_literature,
-            "additional_literature_list": _split_lines(syllabus.additional_literature)
-            or derived_additional_literature,
+            "main_literature_list": _split_lines(syllabus.main_literature) or derived_main_literature,
+            "additional_literature_list": _split_lines(syllabus.additional_literature) or derived_additional_literature,
         },
     )
 
@@ -366,9 +298,6 @@ def syllabus_detail(request, pk):
 @login_required
 @role_required("teacher", "program_leader")
 def syllabus_edit_topics(request, pk):
-    """
-    Отключено. Редирект на просмотр.
-    """
     messages.info(request, "Ручное редактирование тем отключено. Пожалуйста, внесите изменения в файл и загрузите его заново.")
     return redirect("syllabus_detail", pk=pk)
 
@@ -376,9 +305,6 @@ def syllabus_edit_topics(request, pk):
 @login_required
 @role_required("teacher", "program_leader")
 def syllabus_edit_details(request, pk):
-    """
-    Отключено. Редирект на просмотр.
-    """
     messages.info(request, "Ручное редактирование полей отключено. Пожалуйста, внесите изменения в файл и загрузите его заново.")
     return redirect("syllabus_detail", pk=pk)
 
@@ -395,11 +321,7 @@ def syllabus_pdf(request, pk):
 
 @login_required
 def send_to_ai_check(request, pk):
-    """
-    Вспомогательный метод, если нужно принудительно пнуть ИИ.
-    """
     syllabus = get_object_or_404(Syllabus, pk=pk)
-    
     if request.user != syllabus.creator:
         messages.error(request, "Только создатель может отправить силлабус на проверку.")
         return redirect('syllabus_detail', pk=pk)
@@ -410,14 +332,9 @@ def send_to_ai_check(request, pk):
 
     syllabus.status = Syllabus.Status.AI_CHECK
     syllabus.save(update_fields=['status'])
-    
     SyllabusRevision.objects.create(
-        syllabus=syllabus,
-        changed_by=request.user,
-        version_number=syllabus.version_number,
-        note="Отправлено на проверку ИИ"
+        syllabus=syllabus, changed_by=request.user, version_number=syllabus.version_number, note="Отправлено на проверку ИИ"
     )
-
     messages.success(request, "Силлабус отправлен на проверку ИИ. Ожидайте результата.")
     return redirect('syllabus_detail', pk=pk)
 
@@ -437,30 +354,31 @@ def syllabus_change_status(request, pk, new_status):
 
 @login_required
 def syllabus_upload_file(request, pk):
+    """Загрузка файла внутри Деталей силлабуса (обновление версии)."""
     syllabus = get_object_or_404(Syllabus, pk=pk)
     if request.method != "POST":
         return redirect("syllabus_detail", pk=pk)
 
-    is_admin_like = request.user.is_admin_like or request.user.is_superuser
-    is_umu = request.user.role == "umu" or is_admin_like
-    is_teacher_like = request.user.is_teacher_like
-    is_creator = request.user == syllabus.creator
     is_frozen = syllabus.status == Syllabus.Status.APPROVED
+    is_creator = request.user == syllabus.creator
+    is_umu = request.user.role == "umu" or request.user.is_superuser
     
-    can_upload = (is_creator and not is_frozen and is_teacher_like) or (is_umu and is_frozen)
+    can_upload = (is_creator and not is_frozen) or (is_umu and is_frozen)
     if not can_upload:
-        raise PermissionDenied("У вас нет прав на загрузку файла для этого силлабуса.")
+        raise PermissionDenied("У вас нет прав на загрузку файла.")
 
     uploaded = request.FILES.get("attachment")
     if uploaded:
         syllabus.pdf_file.save(uploaded.name, uploaded, save=False)
         syllabus.version_number += 1
         
-        # Перезапуск проверки при обновлении файла
+        # Если загрузил автор и статус позволяет - отправляем на ИИ
         if is_creator and syllabus.status in [Syllabus.Status.CORRECTION, Syllabus.Status.DRAFT]:
             syllabus.status = Syllabus.Status.AI_CHECK
             syllabus.ai_feedback = ""
-            messages.success(request, "Файл обновлен! Силлабус автоматически отправлен на повторную проверку ИИ.")
+            messages.success(request, "Файл обновлен! Запущен повторный анализ ИИ.")
+        else:
+             messages.success(request, "Файл обновлен.")
         
         syllabus.save()
         
@@ -486,10 +404,8 @@ def syllabus_upload_file(request, pk):
 def syllabus_toggle_share(request, pk):
     syllabus = get_object_or_404(Syllabus, pk=pk)
     if request.user != syllabus.creator:
-        raise PermissionDenied("Недостаточно прав, чтобы менять доступ к силлабусу.")
-
+        raise PermissionDenied("Недостаточно прав.")
     if request.method == "POST":
         syllabus.is_shared = not syllabus.is_shared
         syllabus.save(update_fields=["is_shared"])
-
     return redirect("syllabus_detail", pk=pk)

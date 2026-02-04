@@ -88,8 +88,8 @@
     {% if user.can_view_courses %}
       <div class="flex flex-wrap gap-2 mt-4">
         <a href="{% url 'course_create' %}" class="btn-primary">Создать курс</a>
-        <a href="{% url 'syllabus_create' %}" class="btn-secondary">Создать силлабус</a>
-        <a href="{% url 'syllabus_create' %}#upload" class="btn-secondary">Загрузить PDF</a>
+        <a href="{% url 'create_constructor' %}" class="btn-secondary">Создать силлабус</a>
+        <a href="{% url 'upload_pdf' %}" class="btn-secondary">Загрузить PDF</a>
       </div>
     {% endif %}
   </div>

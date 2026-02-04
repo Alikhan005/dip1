@@ -77,6 +77,7 @@
   </div>
   {% endif %}
 
+  {% comment %}
   {% if user.is_authenticated and not hide_nav %}
     <div class="ai-widget" data-ai-widget>
       <button
@@ -132,6 +133,7 @@
       </section>
     </div>
   {% endif %}
+  {% endcomment %}
 
   <script>
     (function () {
@@ -174,98 +176,5 @@
     })();
   </script>
 
-  <script>
-    (function () {
-      const widget = document.querySelector("[data-ai-widget]");
-      if (!widget) return;
-      const toggle = widget.querySelector("[data-ai-toggle]");
-      const closeBtn = widget.querySelector("[data-ai-close]");
-      const panel = widget.querySelector("[data-ai-panel]");
-      const history = widget.querySelector("#ai-widget-history");
-      const input = widget.querySelector(".ai-widget__input");
-      const nudge = widget.querySelector("[data-ai-nudge]");
-      const NUDGE_KEY = "ai_widget_nudge_seen";
-
-      const scrollToBottom = () => {
-        if (history) {
-          history.scrollTop = history.scrollHeight;
-        }
-      };
-
-      const showNudge = () => {
-        if (!nudge) return;
-        widget.classList.add("ai-widget--nudge");
-        nudge.hidden = false;
-        nudge.setAttribute("aria-hidden", "false");
-      };
-
-      const hideNudge = () => {
-        if (!nudge) return;
-        widget.classList.remove("ai-widget--nudge");
-        nudge.hidden = true;
-        nudge.setAttribute("aria-hidden", "true");
-      };
-
-      const setOpen = (isOpen) => {
-        widget.classList.toggle("ai-widget--open", isOpen);
-        toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
-        panel.setAttribute("aria-hidden", isOpen ? "false" : "true");
-        panel.hidden = !isOpen;
-        if (isOpen) {
-          hideNudge();
-        }
-        if (isOpen) {
-          setTimeout(() => {
-            if (input) {
-              input.focus();
-            }
-            scrollToBottom();
-          }, 0);
-        }
-      };
-
-      toggle.addEventListener("click", (event) => {
-        event.stopPropagation();
-        setOpen(!widget.classList.contains("ai-widget--open"));
-        hideNudge();
-      });
-
-      closeBtn.addEventListener("click", (event) => {
-        event.stopPropagation();
-        setOpen(false);
-      });
-
-      document.addEventListener("click", (event) => {
-        if (!widget.contains(event.target)) {
-          setOpen(false);
-        }
-      });
-
-      document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") {
-          setOpen(false);
-        }
-      });
-
-      document.body.addEventListener("htmx:afterSwap", (event) => {
-        if (event.target === history) {
-          scrollToBottom();
-        }
-      });
-
-      if (nudge) {
-        try {
-          if (!sessionStorage.getItem(NUDGE_KEY)) {
-            sessionStorage.setItem(NUDGE_KEY, "1");
-            showNudge();
-            setTimeout(hideNudge, 10000);
-          }
-        } catch (err) {
-          showNudge();
-          setTimeout(hideNudge, 10000);
-        }
-      }
-    })();
-  </script>
-</body>
+  </body>
 </html>
