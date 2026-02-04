@@ -137,8 +137,7 @@ def syllabi_list(request):
 def shared_syllabi_list(request):
     """
     Общие силлабусы (доступные другим).
-    ИСПРАВЛЕНО: Показываем только УТВЕРЖДЕННЫЕ (APPROVED) силлабусы коллег.
-    Черновики и документы на проверке скрыты.
+    Показываем только УТВЕРЖДЕННЫЕ (APPROVED) силлабусы коллег.
     """
     base_qs = shared_syllabi_queryset(request.user).filter(
         status=Syllabus.Status.APPROVED
@@ -162,7 +161,6 @@ def shared_syllabi_list(request):
             | Q(creator__last_name__icontains=q)
             | Q(creator__username__icontains=q)
         )
-    # Фильтр по статусу удален из интерфейса, так как показываем только APPROVED
     if year:
         syllabi = syllabi.filter(academic_year=year)
     if course:
@@ -197,7 +195,6 @@ def shared_syllabi_list(request):
                 "course": course,
                 "creator": creator,
             },
-            # status_options удален, так как выбора нет
             "year_options": year_options,
             "course_options": course_options,
             "creator_options": creator_options,
@@ -205,38 +202,85 @@ def shared_syllabi_list(request):
     )
 
 
+# =========================================================
+# НОВЫЕ ФУНКЦИИ ДЛЯ РАЗДЕЛЕНИЯ (КОНСТРУКТОР vs ИМПОРТ)
+# =========================================================
+
 @login_required
 @role_required("teacher", "program_leader")
-def syllabus_create(request):
+def create_constructor_view(request):
     """
-    Создание силлабуса. File-First подход.
-    Загрузка файла сразу инициирует проверку ИИ.
+    Сценарий 1: КОНСТРУКТОР.
+    Создание силлабуса вручную, без загрузки файла.
+    Статус сразу: DRAFT (Черновик), чтобы можно было добавлять темы.
     """
     ensure_default_courses(request.user)
-    
+
+    if request.method == "POST":
+        # Передаем только POST данные, FILES не нужны
+        form = SyllabusForm(request.POST, user=request.user)
+        if form.is_valid():
+            syllabus = form.save(commit=False)
+            syllabus.creator = request.user
+            
+            # Ставим статус "Черновик", так как это ручное создание
+            syllabus.status = Syllabus.Status.DRAFT
+            syllabus.save()
+            
+            messages.success(request, "Силлабус создан. Теперь сформируйте структуру из тем.")
+            return redirect("syllabus_detail", pk=syllabus.pk)
+    else:
+        form = SyllabusForm(user=request.user)
+
+    if not form.fields["course"].queryset.exists():
+        messages.warning(request, "У вас нет доступных дисциплин. Обратитесь к администратору.")
+
+    return render(
+        request,
+        "syllabi/create_constructor.html",  # Отдельный шаблон для конструктора
+        {"form": form},
+    )
+
+
+@login_required
+@role_required("teacher", "program_leader")
+def upload_pdf_view(request):
+    """
+    Сценарий 2: ИМПОРТ ФАЙЛА.
+    Загрузка готового PDF/Word.
+    Статус сразу: AI_CHECK (На проверке ИИ).
+    """
+    ensure_default_courses(request.user)
+
     if request.method == "POST":
         form = SyllabusForm(request.POST, request.FILES, user=request.user)
         if form.is_valid():
             syllabus = form.save(commit=False)
             syllabus.creator = request.user
             
-            # АВТОМАТИЗАЦИЯ: Сразу ставим статус "На проверке ИИ"
-            syllabus.status = Syllabus.Status.AI_CHECK
-            syllabus.save()
-            
-            messages.success(request, "Силлабус загружен! Запущена автоматическая проверка ИИ.")
-            return redirect("syllabus_detail", pk=syllabus.pk)
+            # Проверяем, загрузил ли пользователь файл
+            if not syllabus.pdf_file:
+                messages.error(request, "Для проверки ИИ необходимо загрузить файл!")
+            else:
+                # АВТОМАТИЗАЦИЯ: Сразу ставим статус "На проверке ИИ"
+                syllabus.status = Syllabus.Status.AI_CHECK
+                syllabus.save()
+                
+                messages.success(request, "Файл загружен! Запущена автоматическая проверка ИИ.")
+                return redirect("syllabus_detail", pk=syllabus.pk)
     else:
         form = SyllabusForm(user=request.user)
-    
+
     if not form.fields["course"].queryset.exists():
         messages.warning(request, "У вас нет доступных дисциплин. Обратитесь к администратору.")
 
     return render(
         request,
-        "syllabi/syllabus_form.html",
+        "syllabi/upload_pdf.html",  # Отдельный шаблон для загрузки
         {"form": form},
     )
+
+# =========================================================
 
 
 @login_required
@@ -264,9 +308,7 @@ def syllabus_detail(request, pk):
     has_topics = bool(topics)
     derived_main_literature, derived_additional_literature = _build_literature_lists(topics)
     
-    # Кнопки Workflow
-    # can_send_ai теперь не нужен в шаблоне, так как проверка автоматическая,
-    # но оставим False для совместимости, чтобы скрыть старые кнопки
+    # can_send_ai не нужен в шаблоне, так как проверка автоматическая
     can_send_ai = False
 
     can_submit_dean = (

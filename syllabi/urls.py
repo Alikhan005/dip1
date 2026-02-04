@@ -9,6 +9,11 @@ urlpatterns = [
     path("<int:pk>/edit-details/", views.syllabus_edit_details, name="syllabus_edit_details"),
     path("<int:pk>/edit-topics/", views.syllabus_edit_topics, name="syllabus_edit_topics"),
     path("<int:pk>/pdf/", views.syllabus_pdf, name="syllabus_pdf"),
+    # 1. Путь для КОНСТРУКТОРА (ручное создание)
+    path('create/manual/', views.create_constructor_view, name='create_constructor'),
+    
+    # 2. Путь для ЗАГРУЗКИ (Импорт файла для ИИ)
+    path('create/upload/', views.upload_pdf_view, name='upload_pdf'),
     
     # --- НОВЫЙ МАРШРУТ (ВАЖНО) ---
     path("<int:pk>/send-ai/", views.send_to_ai_check, name="syllabus_send_ai"),
