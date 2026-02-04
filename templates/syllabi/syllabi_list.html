@@ -8,17 +8,13 @@
     <p class="text-slate-500 text-sm mt-1">Здесь хранятся все ваши документы и их статусы.</p>
   </div>
   
-{% if user.is_teacher_like %}
-  <div class="flex gap-2">
-    <a href="{% url 'create_constructor' %}" class="btn-primary shadow-md flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
-      <i class="fas fa-edit"></i> Конструктор
-    </a>
-    
-    <a href="{% url 'upload_pdf' %}" class="btn-primary shadow-md flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
-      <i class="fas fa-file-upload"></i> Загрузить PDF
-    </a>
-  </div>
-{% endif %}
+  {% if user.is_teacher_like %}
+    <div class="flex gap-2">
+      <a href="{% url 'upload_pdf' %}" class="btn-primary shadow-md flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+        <i class="fas fa-plus"></i> Загрузить новый силлабус
+      </a>
+    </div>
+  {% endif %}
 </div>
 
 <form method="get" class="card p-4 mb-6 bg-white shadow-sm border border-slate-200">
@@ -103,7 +99,7 @@
           <div class="text-4xl mb-2">📂</div>
           <p>Список пуст.</p>
           {% if user.is_teacher_like %}
-            <a href="{% url 'syllabus_create' %}" class="text-blue-600 hover:underline mt-2 inline-block">Загрузить первый силлабус</a>
+            <a href="{% url 'upload_pdf' %}" class="text-blue-600 hover:underline mt-2 inline-block">Загрузить первый силлабус</a>
           {% endif %}
         </td>
       </tr>

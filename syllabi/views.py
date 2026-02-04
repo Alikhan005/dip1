@@ -166,43 +166,15 @@ def shared_syllabi_list(request):
 
 
 # =========================================================
-#  НОВЫЕ ФУНКЦИИ (КОНСТРУКТОР vs ИМПОРТ)
+#  ФУНКЦИЯ СОЗДАНИЯ (ТОЛЬКО ИМПОРТ PDF/WORD)
 # =========================================================
-
-@login_required
-@role_required("teacher", "program_leader")
-def create_constructor_view(request):
-    """
-    Сценарий 1: КОНСТРУКТОР.
-    Ручное создание. Статус = DRAFT.
-    """
-    ensure_default_courses(request.user)
-
-    if request.method == "POST":
-        form = SyllabusForm(request.POST, user=request.user)
-        if form.is_valid():
-            syllabus = form.save(commit=False)
-            syllabus.creator = request.user
-            syllabus.status = Syllabus.Status.DRAFT  # Черновик
-            syllabus.save()
-            messages.success(request, "Силлабус создан. Теперь сформируйте структуру из тем.")
-            return redirect("syllabus_detail", pk=syllabus.pk)
-    else:
-        form = SyllabusForm(user=request.user)
-
-    if not form.fields["course"].queryset.exists():
-        messages.warning(request, "У вас нет доступных дисциплин. Обратитесь к администратору.")
-
-    # Используем шаблон БЕЗ поля загрузки файла
-    return render(request, "syllabi/create_constructor.html", {"form": form})
-
 
 @login_required
 @role_required("teacher", "program_leader")
 def upload_pdf_view(request):
     """
-    Сценарий 2: ИМПОРТ ФАЙЛА.
-    Загрузка PDF. Статус = AI_CHECK.
+    Сценарий: ИМПОРТ ФАЙЛА.
+    Загрузка PDF/Word. Статус = AI_CHECK.
     """
     ensure_default_courses(request.user)
 

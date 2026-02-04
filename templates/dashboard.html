@@ -82,14 +82,13 @@
     <h2 class="text-xl font-semibold mb-3">Первые шаги</h2>
     <ol class="list-decimal ml-6 text-slate-600 space-y-2">
       <li>Создайте курс и заполните банк тем (названия, часы, литература).</li>
-      <li>Соберите силлабус на семестр или загрузите старый PDF для ориентира.</li>
-      <li>Проверьте недели, часы и отправьте на согласование.</li>
+      <li>Загрузите готовый файл силлабуса (PDF/Word) для автоматической проверки.</li>
+      <li>Проверьте отчет ИИ и отправьте документ на согласование.</li>
     </ol>
     {% if user.can_view_courses %}
       <div class="flex flex-wrap gap-2 mt-4">
         <a href="{% url 'course_create' %}" class="btn-primary">Создать курс</a>
-        <a href="{% url 'create_constructor' %}" class="btn-secondary">Создать силлабус</a>
-        <a href="{% url 'upload_pdf' %}" class="btn-secondary">Загрузить PDF</a>
+        <a href="{% url 'upload_pdf' %}" class="btn-secondary">Загрузить силлабус</a>
       </div>
     {% endif %}
   </div>

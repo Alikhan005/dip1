@@ -10,10 +10,11 @@ urlpatterns = [
     # Раньше тут был path("create/", ...), но мы разделили его на два нижних:
 
     # 1. Путь для КОНСТРУКТОРА (ручное создание)
-    path('create/manual/', views.create_constructor_view, name='create_constructor'),
+    #path('create/manual/', views.create_constructor_view, name='create_constructor'),
     
     # 2. Путь для ЗАГРУЗКИ (Импорт файла для ИИ)
     path('create/upload/', views.upload_pdf_view, name='upload_pdf'),
+    
     
     # Детали и PDF
     path("<int:pk>/", views.syllabus_detail, name="syllabus_detail"),
