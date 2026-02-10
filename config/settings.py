@@ -8,6 +8,7 @@ except Exception:  # pragma: no cover - optional dependency
     load_dotenv = None
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+AI_MODELS_DIR = os.path.join(BASE_DIR, 'ai_models')
 
 # Загружаем .env автоматически
 if load_dotenv:

@@ -85,9 +85,9 @@
         <i class="fas fa-robot text-3xl"></i>
     </div>
     <h3 class="text-xl font-bold text-slate-800">Идет проверка ИИ...</h3>
-    <p class="text-slate-500 mt-2 max-w-md">Анализируем структуру, темы и литературу. Это займет около 1-3 минут.</p>
+    <p class="text-slate-500 mt-2 max-w-md">Анализируем структуру, темы и литературу. Это займет несколько секунд.</p>
     <button onclick="window.location.reload()" class="mt-6 text-amber-600 font-medium hover:text-amber-800 underline">
-        Проверить статус
+        Проверить статус (Обновить)
     </button>
 </div>
 {% endif %}
@@ -95,12 +95,15 @@
 
 {% if syllabus.status == 'correction' %}
 <div class="mb-8 flex flex-col gap-6">
-    <div class="p-6 bg-red-50 border border-red-200 rounded-xl">
+    <div class="p-6 bg-red-50 border border-red-200 rounded-xl shadow-sm">
         <div class="flex items-start gap-4">
             <div class="text-3xl text-red-500"><i class="fas fa-exclamation-circle"></i></div>
-            <div>
-                <h3 class="text-lg font-bold text-red-900">Замечания к документу</h3>
-                <div class="mt-2 text-slate-700 whitespace-pre-line text-sm">{{ syllabus.ai_feedback }}</div>
+            <div class="w-full">
+                <h3 class="text-lg font-bold text-red-900 mb-2">Есть замечания</h3>
+                
+                <div class="bg-white p-4 rounded-lg border border-red-100 text-sm text-slate-700">
+                    {{ syllabus.ai_feedback|safe }}
+                </div>
             </div>
         </div>
     </div>
@@ -113,7 +116,7 @@
                 <i class="fas fa-cloud-upload-alt text-4xl text-slate-300 group-hover:text-blue-500 transition"></i>
             </div>
             <h3 class="text-lg font-semibold text-slate-800">Загрузить исправленный файл</h3>
-            <p class="text-sm text-slate-500 mb-6">Новый файл автоматически отправится на проверку.</p>
+            <p class="text-sm text-slate-500 mb-6">Новый файл автоматически отправится на повторную проверку.</p>
             <label class="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-6 rounded-lg shadow-md transition inline-flex items-center gap-2">
                 <span>Выбрать файл</span>
                 <input type="file" name="attachment" class="hidden" onchange="this.form.submit()" accept=".pdf,.docx,.doc">
@@ -128,7 +131,7 @@
 {% if syllabus.status == 'review_dean' or syllabus.status == 'review_umu' or syllabus.status == 'approved' %}
 <div class="mb-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
     
-    <div class="lg:col-span-2 bg-green-50 border border-green-200 rounded-xl p-6 relative overflow-hidden">
+    <div class="lg:col-span-2 bg-green-50 border border-green-200 rounded-xl p-6 relative overflow-hidden shadow-sm">
         <div class="absolute top-0 right-0 p-4 opacity-10">
             <i class="fas fa-check-circle text-9xl text-green-600"></i>
         </div>
@@ -137,14 +140,14 @@
                 <div class="bg-green-100 p-2 rounded-lg text-green-700">
                     <i class="fas fa-check text-xl"></i>
                 </div>
-                <h3 class="text-lg font-bold text-green-900">Проверка пройдена</h3>
+                <h3 class="text-lg font-bold text-green-900">Проверка пройдена успешно</h3>
             </div>
             
-            <p class="text-green-800 text-sm mb-4 leading-relaxed">
-                "{{ syllabus.ai_feedback|default:'Документ соответствует стандартам. Структура корректна.'|truncatechars:150 }}"
+            <p class="text-green-800 text-sm mb-4 leading-relaxed font-medium">
+                Критических ошибок не найдено. Документ передан на следующий этап согласования.
             </p>
 
-            <div class="flex items-center gap-2 text-sm font-medium text-green-700 bg-white/50 p-3 rounded-lg inline-block">
+            <div class="flex items-center gap-2 text-sm font-bold text-green-700 bg-white/60 p-3 rounded-lg inline-block mb-4">
                 {% if syllabus.status == 'review_dean' %}
                     <i class="fas fa-user-tie"></i> На подписи у Декана
                 {% elif syllabus.status == 'review_umu' %}
@@ -153,6 +156,16 @@
                     <i class="fas fa-star"></i> Силлабус утвержден!
                 {% endif %}
             </div>
+
+            <details class="text-xs text-green-700 cursor-pointer group">
+                <summary class="hover:underline font-medium select-none flex items-center gap-1">
+                    <span>Показать подробный отчет ИИ</span>
+                    <span class="group-open:rotate-180 transition-transform">▼</span>
+                </summary>
+                <div class="mt-2 p-4 bg-white/80 rounded border border-green-100 text-slate-700">
+                    {{ syllabus.ai_feedback|safe }}
+                </div>
+            </details>
         </div>
     </div>
 

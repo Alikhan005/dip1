@@ -28,6 +28,9 @@
       font-weight: 700;
       margin-top: 16px;
       margin-bottom: 6px;
+      background-color: #f1f5f9;
+      padding: 5px;
+      border-left: 4px solid #0f172a;
     }
     .subsection-title {
       font-size: 12px;
@@ -63,6 +66,12 @@
     }
     .muted {
       color: #64748b;
+    }
+    /* Стили специально для таблицы оценок */
+    .grading-table th, .grading-table td {
+        border: 1px solid black !important;
+        text-align: center;
+        padding: 4px;
     }
   </style>
 </head>
@@ -209,16 +218,30 @@
     <div class="cell-pre">{{ syllabus.inclusive_policy }}</div>
   {% endif %}
 
-  {% if syllabus.assessment_policy %}
-    <div class="section-title">Политика оценивания</div>
-    <div class="cell-pre">{{ syllabus.assessment_policy }}</div>
-  {% endif %}
-
-  {% if syllabus.grading_scale %}
-    <div class="section-title">Балльно-рейтинговая шкала</div>
-    <div class="cell-pre">{{ syllabus.grading_scale }}</div>
-  {% endif %}
-
+  <div class="section-title">Система оценки знаний / Grading System</div>
+  <table class="grading-table" style="width: 100%; border-collapse: collapse; font-size: 10pt; margin-top: 10px;">
+      <thead>
+          <tr style="background-color: #f0f0f0;">
+              <th>Буквенная оценка<br>(Letter Grade)</th>
+              <th>Цифровой эквивалент<br>(Digital Equivalent)</th>
+              <th>Баллы<br>(Points %)</th>
+              <th>Традиционная система<br>(Traditional System)</th>
+          </tr>
+      </thead>
+      <tbody>
+          <tr><td>A</td><td>4.0</td><td>95-100</td><td rowspan="2">Отлично (Excellent)</td></tr>
+          <tr><td>A-</td><td>3.67</td><td>90-94</td></tr>
+          <tr><td>B+</td><td>3.33</td><td>85-89</td><td rowspan="3">Хорошо (Good)</td></tr>
+          <tr><td>B</td><td>3.0</td><td>80-84</td></tr>
+          <tr><td>B-</td><td>2.67</td><td>75-79</td></tr>
+          <tr><td>C+</td><td>2.33</td><td>70-74</td><td rowspan="3">Удовлетворительно (Satisfactory)</td></tr>
+          <tr><td>C</td><td>2.0</td><td>65-69</td></tr>
+          <tr><td>C-</td><td>1.67</td><td>60-64</td></tr>
+          <tr><td>D+</td><td>1.33</td><td>55-59</td><td rowspan="2">Неудовлетворительно (Unsatisfactory)</td></tr>
+          <tr><td>D-</td><td>1.0</td><td>50-54</td></tr>
+          <tr><td>F</td><td>0</td><td>0-49</td><td>Неудовлетворительно (Fail)</td></tr>
+      </tbody>
+  </table>
   {% if main_literature_list or additional_literature_list %}
     <div class="section-title">4. Список литературы</div>
     {% if main_literature_list %}

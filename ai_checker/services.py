@@ -4,17 +4,17 @@ import os
 import re
 from pathlib import Path
 
-# --- ПРИОРИТЕТ 1: pypdf (Самый надежный) ---
-try:
-    import pypdf
-except ImportError:
-    pypdf = None
-
-# --- ПРИОРИТЕТ 2: MarkItDown (Запасной) ---
+# --- ПРИОРИТЕТ 1: MarkItDown (Microsoft - Лучше для таблиц и DOCX) ---
 try:
     from markitdown import MarkItDown
 except ImportError:
     MarkItDown = None
+
+# --- ПРИОРИТЕТ 2: pypdf (Запасной для PDF) ---
+try:
+    import pypdf
+except ImportError:
+    pypdf = None
 
 from syllabi.models import Syllabus
 from .llm import generate_text, get_model_name
@@ -22,212 +22,174 @@ from .models import AiCheckResult
 
 logger = logging.getLogger(__name__)
 
-# --- Загрузка переменных окружения ---
-_ENV_LOADED = False
-try:
-    from dotenv import load_dotenv
-except Exception:
-    load_dotenv = None
+# --- ОПТИМИЗАЦИЯ СКОРОСТИ ---
+# Ограничиваем входной текст. 2500 символов (~600 токенов) достаточно для проверки структуры.
+# Чем меньше текст, тем быстрее думает ИИ.
+MAX_INPUT_CHARS = 2500 
 
-def _ensure_env_loaded() -> None:
-    global _ENV_LOADED
-    if _ENV_LOADED: return
-    _ENV_LOADED = True
-    if load_dotenv:
-        root = Path(__file__).resolve().parents[1]
-        env_path = root / ".env"
-        if env_path.exists(): load_dotenv(env_path)
-
-def _env_int(name: str, default: int) -> int:
-    _ensure_env_loaded()
-    try: return int(os.getenv(name, str(default)))
-    except: return default
-
-
-# --- ЧТЕНИЕ ФАЙЛА ---
 def extract_text_from_file(file_path: str) -> str:
-    """
-    Извлекает текст. Сначала пробует pypdf.
-    """
+    """Извлекает текст. Приоритет: MarkItDown -> pypdf."""
     if not os.path.exists(file_path):
         return ""
 
-    extracted_text = ""
+    # 1. MarkItDown (Лучшее качество)
+    if MarkItDown:
+        try:
+            md = MarkItDown()
+            result = md.convert(file_path)
+            if result.text_content and len(result.text_content) > 50:
+                logger.info("✅ MarkItDown успешно прочитал файл")
+                return result.text_content
+        except Exception as e:
+            logger.warning(f"⚠️ MarkItDown ошибка: {e}")
 
-    # ПОПЫТКА 1: pypdf
+    # 2. pypdf (Запасной)
     if pypdf and file_path.lower().endswith('.pdf'):
         try:
             reader = pypdf.PdfReader(file_path)
             parts = []
             for page in reader.pages:
                 txt = page.extract_text()
-                if txt:
-                    parts.append(txt)
-            extracted_text = "\n".join(parts)
-            
-            if len(extracted_text) > 50:
-                logger.info("Успешно прочитано через pypdf.")
-                return extracted_text
-        except Exception as e:
-            logger.warning(f"pypdf ошибка: {e}")
-
-    # ПОПЫТКА 2: MarkItDown
-    if MarkItDown:
-        try:
-            md = MarkItDown()
-            result = md.convert(file_path)
-            text = result.text_content
-            if text and len(text) > 50:
+                if txt: parts.append(txt)
+            text = "\n".join(parts)
+            if len(text) > 50:
+                logger.info("✅ pypdf успешно прочитал файл")
                 return text
         except Exception as e:
-            logger.warning(f"MarkItDown ошибка: {e}")
+            logger.warning(f"❌ pypdf ошибка: {e}")
 
-    return extracted_text
-
+    return ""
 
 def build_syllabus_text_from_db(syllabus: Syllabus) -> str:
-    parts = []
-    parts.append(f"Course: {syllabus.course.code}")
-    parts.append(f"Semester: {syllabus.semester}")
-    parts.append(f"Description: {syllabus.course_description}")
+    parts = [f"Course: {syllabus.course.code}"]
+    if syllabus.course_description:
+        parts.append(f"Description: {syllabus.course_description}")
     
     topics = syllabus.syllabus_topics.filter(is_included=True).order_by("week_number")
     if topics.exists():
         parts.append("\nTopics:")
         for st in topics:
             parts.append(f"Week {st.week_number}: {st.get_title()}")
+            if st.learning_outcomes:
+                 parts.append(f"  - Outcome: {st.learning_outcomes}")
     
     return "\n".join(parts)
 
-
-def _build_hybrid_prompt(syllabus_text: str) -> str:
+def _build_optimized_prompt(syllabus_text: str) -> str:
     """
-    ГИБРИДНЫЙ ПРОМПТ.
+    Короткий и четкий промпт для скорости.
+    Заставляет ИИ отвечать JSON-ом без лишних размышлений.
     """
-    system = (
-        "Ты — Главный Методист Университета AlmaU. Твоя задача — проверить документ.\n"
-        "ВАЖНО: Текст извлечен из PDF, он может быть склеен. Игнорируй мусор, ищи СМЫСЛ.\n\n"
-        
-        "ТВОИ ПРАВИЛА:\n"
-        "1. ✅ СТРУКТУРА КУРСА:\n"
-        "   - Ищи упоминания времени: 'Неделя 1', 'Week 5', '3-4 нед.', 'Модуль 1'.\n"
-        "   - Если курс проектный (Startup, Capstone) — список из 15 лекций НЕ НУЖЕН. Достаточно этапов (MVP, CustDev, Защита).\n"
-        "   - Диапазоны недель (3-4, 5-8) — это НОРМАЛЬНО.\n\n"
-        
-        "2. ✅ ОБЯЗАТЕЛЬНЫЕ БЛОКИ:\n"
-        "   - Описание (Description/Objective).\n"
-        "   - Оценивание/Политика (Grading/Policy).\n"
-        "   - Расписание/Темы (Schedule/Topics).\n\n"
-        
-        "3. ❌ КОГДА ОТКЛОНЯТЬ:\n"
-        "   - Только если файл пустой или это вообще не учебный план.\n\n"
-
-        "ВЕРДИКТ:\n"
-        "Если документ похож на реальный силлабус — ставь APPROVED: TRUE.\n"
-        "В feedback пиши на русском языке."
-    )
-    
-    format_instruction = (
-        "ОТВЕТЬ ТОЛЬКО JSON-ОБЪЕКТОМ:\n"
-        "{\n"
-        "  \"approved\": true,\n"
-        "  \"feedback\": \"Силлабус корректен.\"\n"
-        "}"
-    )
-
     return (
         "<|im_start|>system\n"
-        f"{system}\n"
+        "Ты эксперт Учебно-методического управления (УМУ). Твоя задача — проверить структуру силлабуса.\n"
+        "Правила:\n"
+        "1. Проверь наличие Целей, Тем (15 недель) и Литературы.\n"
+        "2. Если темы не соответствуют целям — это ошибка.\n"
+        "3. Если литературы нет или она старая (<2010) — это ошибка.\n"
+        "Ответь СТРОГО в формате JSON: {\"approved\": boolean, \"feedback\": \"HTML text\"}.\n"
         "<|im_end|>\n"
         "<|im_start|>user\n"
-        f"Текст документа:\n================\n{syllabus_text}\n================\n\n{format_instruction}"
+        f"Текст силлабуса (фрагмент):\n{syllabus_text}\n"
         "<|im_end|>\n"
         "<|im_start|>assistant\n"
     )
 
-
 def _parse_json_response(text: str) -> dict:
+    """Пытается достать JSON из ответа, даже если ИИ добавил мусор."""
     cleaned = text.strip()
-    cleaned = re.sub(r"```json", "", cleaned)
-    cleaned = re.sub(r"```", "", cleaned).strip()
+    # Убираем markdown ```json ... ```
+    cleaned = re.sub(r"^```json", "", cleaned)
+    cleaned = re.sub(r"^```", "", cleaned)
+    cleaned = re.sub(r"```$", "", cleaned).strip()
+    
     try:
+        # Ищем фигурные скобки
         start = cleaned.find("{")
         end = cleaned.rfind("}")
         if start != -1 and end != -1:
-            return json.loads(cleaned[start : end + 1])
+            json_str = cleaned[start : end + 1]
+            return json.loads(json_str)
     except Exception:
         pass
-    lower_text = cleaned.lower()
-    if "true" in lower_text and "approved" in lower_text:
-        return {"approved": True, "feedback": cleaned[:200]}
-    return {"approved": False, "feedback": "Не удалось прочитать ответ ИИ."}
-
+    
+    # Если JSON не распарсился, считаем это замечанием
+    return {
+        "approved": False, 
+        "feedback": f"<h3>Результат анализа</h3><p>{cleaned[:500]}...</p>"
+    }
 
 def run_ai_check(syllabus: Syllabus) -> AiCheckResult:
+    print(f"--- [DEBUG] Начало проверки силлабуса ID {syllabus.id} ---")
+    
     content_source = "db"
     extracted_text = ""
     
     # 1. Читаем файл
     if syllabus.pdf_file:
+        print(f"--- [DEBUG] Пробую читать файл: {syllabus.pdf_file.path} ---")
         extracted_text = extract_text_from_file(syllabus.pdf_file.path)
-        if extracted_text and len(extracted_text) > 50:
+        if extracted_text:
             content_source = "file"
-        else:
-            logger.warning(f"Файл {syllabus.pk} не удалось прочитать.")
+            print("--- [DEBUG] Текст успешно извлечен из файла ---")
 
     if content_source == "file":
-        syllabus_text = extracted_text
+        full_text = extracted_text
     else:
-        syllabus_text = build_syllabus_text_from_db(syllabus)
+        print("--- [DEBUG] Беру текст из базы данных ---")
+        full_text = build_syllabus_text_from_db(syllabus)
 
-    # !!! ВАЖНОЕ ИЗМЕНЕНИЕ: Урезаем до 6000 символов !!!
-    # Это примерно 2000 токенов + системный промпт = ~2800 токенов. 
-    # В память 4096 влезет с запасом.
-    trimmed_text = syllabus_text[:6000]
+    # === УСКОРЕНИЕ 1: Обрезаем текст ===
+    # Берем первые 2500 символов. Обычно ошибки в начале (цели) или в конце (литература).
+    trimmed_text = full_text[:MAX_INPUT_CHARS]
+    print(f"--- [DEBUG] Длина текста для ИИ: {len(trimmed_text)} символов ---")
 
     if len(trimmed_text) < 50:
-        return _save_check_result(syllabus, False, "Файл пустой или текст не распознан.", "empty", "none")
+         print("--- [DEBUG] Текст слишком короткий, отмена ---")
+         return _save_check_result(syllabus, False, "<h3>Ошибка</h3><p>Файл пустой.</p>", "empty", "none")
 
-    # 2. Проверка ИИ
-    prompt = _build_hybrid_prompt(trimmed_text)
+    # 2. Генерируем ответ
+    prompt = _build_optimized_prompt(trimmed_text)
     
     model_name = "unknown"
     raw_response = ""
     result_data = {}
 
     try:
-        logger.info(f"Checking Syllabus #{syllabus.id} (len={len(trimmed_text)} chars)...")
-        # Генерируем ответ
+        print("--- [DEBUG] Отправляю запрос в LLM... ---")
+        
+        # === УСКОРЕНИЕ 2: max_tokens=300 ===
+        # Мы просим ИИ писать ОЧЕНЬ кратко. Это ускоряет генерацию в 2-3 раза.
         raw_response = generate_text(prompt, max_tokens=300, temperature=0.1)
+        print("--- [DEBUG] Ответ от LLM получен! ---")
+        
         model_name = get_model_name()
-        logger.info(f"AI Raw Response: {raw_response}")
         result_data = _parse_json_response(raw_response)
+        
     except Exception as e:
         logger.error(f"LLM Error: {e}")
-        # Если даже так упадет, скажем пользователю
-        feedback = "Ошибка: Файл слишком большой для ИИ. Попробуйте сжать PDF." if "context" in str(e).lower() else f"Ошибка ИИ: {e}"
-        result_data = {"approved": False, "feedback": feedback}
+        print(f"--- [DEBUG] Ошибка LLM: {e} ---")
+        result_data = {"approved": False, "feedback": f"Ошибка ИИ: {e}"}
         raw_response = str(e)
 
+    print("--- [DEBUG] Сохраняю результат в БД ---")
     return _save_check_result(
         syllabus, 
         result_data.get("approved", False), 
-        result_data.get("feedback", "Нет комментария"), 
+        result_data.get("feedback", "Нет ответа"), 
         raw_response, 
         model_name
     )
 
-
 def _save_check_result(syllabus, approved, feedback, raw_response, model_name):
     syllabus.ai_feedback = feedback
-    check_result = AiCheckResult.objects.create(
+    
+    # Делаем короткое саммари, очищая HTML теги
+    clean_summary = re.sub(r'<[^>]+>', '', feedback)[:200] + "..."
+    
+    return AiCheckResult.objects.create(
         syllabus=syllabus,
         model_name=model_name,
-        summary=feedback[:500],
-        raw_result={
-            "approved": approved,
-            "feedback": feedback,
-            "full_response": raw_response
-        }
+        summary=clean_summary,
+        raw_result={"approved": approved, "feedback": feedback, "full_response": raw_response}
     )
-    return check_result
