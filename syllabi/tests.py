@@ -179,6 +179,80 @@ class SyllabusRoleViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Панель управления")
 
+    def test_umu_reject_redirects_back_to_dashboard_when_next_is_set(self):
+        teacher = self._create_user("teacher_redirect_back", "teacher")
+        umu = self._create_user("umu_redirect_back", "umu")
+        course = self._create_course(teacher, code="CS407A")
+        syllabus = Syllabus.objects.create(
+            course=course,
+            creator=teacher,
+            semester="Fall 2025",
+            academic_year="2025-2026",
+            status=Syllabus.Status.REVIEW_UMU,
+        )
+
+        self.client.force_login(umu)
+        response = self.client.post(
+            reverse("syllabus_change_status", args=[syllabus.pk, Syllabus.Status.CORRECTION]),
+            {"comment": "Нужно доработать раздел литературы.", "next": reverse("dashboard")},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse("dashboard"))
+        syllabus.refresh_from_db()
+        self.assertEqual(syllabus.status, Syllabus.Status.CORRECTION)
+
+    def test_teacher_dashboard_shows_umu_correction_note(self):
+        teacher = self._create_user("teacher_dash_note", "teacher")
+        umu = self._create_user("umu_dash_note", "umu")
+        course = self._create_course(teacher, code="CS407B")
+        syllabus = Syllabus.objects.create(
+            course=course,
+            creator=teacher,
+            semester="Fall 2025",
+            academic_year="2025-2026",
+            status=Syllabus.Status.REVIEW_UMU,
+        )
+
+        self.client.force_login(umu)
+        self.client.post(
+            reverse("syllabus_change_status", args=[syllabus.pk, Syllabus.Status.CORRECTION]),
+            {"comment": "Добавьте недостающие исходы обучения."},
+        )
+
+        self.client.force_login(teacher)
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Возврат от УМУ")
+        self.assertContains(response, "Добавьте недостающие исходы обучения.")
+
+    def test_teacher_detail_shows_russian_umu_correction_block(self):
+        teacher = self._create_user("teacher_detail_note", "teacher")
+        umu = self._create_user("umu_detail_note", "umu")
+        course = self._create_course(teacher, code="CS407C")
+        syllabus = Syllabus.objects.create(
+            course=course,
+            creator=teacher,
+            semester="Fall 2025",
+            academic_year="2025-2026",
+            status=Syllabus.Status.REVIEW_UMU,
+        )
+
+        self.client.force_login(umu)
+        self.client.post(
+            reverse("syllabus_change_status", args=[syllabus.pk, Syllabus.Status.CORRECTION]),
+            {"comment": "Причина понятная"},
+        )
+
+        self.client.force_login(teacher)
+        response = self.client.get(reverse("syllabus_detail", args=[syllabus.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "возврат: УМУ")
+        self.assertContains(response, "Причина понятная")
+        self.assertNotContains(response, "returned for correction")
+
     def test_send_to_ai_check_requires_post(self):
         teacher = self._create_user("teacher_send_ai_get", "teacher")
         course = self._create_course(teacher, code="CS408")

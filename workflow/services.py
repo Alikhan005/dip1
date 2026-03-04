@@ -16,6 +16,17 @@ _ALLOWED_STATUSES = {choice[0] for choice in Syllabus.Status.choices}
 _REVIEW_STATUSES = {Syllabus.Status.REVIEW_DEAN, Syllabus.Status.REVIEW_UMU}
 
 
+def _reviewer_label(user) -> str:
+    role = getattr(user, "role", "")
+    if role == "umu":
+        return "УМУ"
+    if role == "dean":
+        return "Деканат"
+    if role == "admin":
+        return "Администратор"
+    return user.get_full_name() or getattr(user, "username", "") or "Проверяющий"
+
+
 def _status_label(status: str) -> str:
     """Return a human-readable status label when possible."""
     try:
@@ -171,9 +182,6 @@ def change_status(user, syllabus: Syllabus, new_status: str, comment: str = ""):
         if not comment:
             raise ValueError("Comment is required when returning for correction.")
 
-        role_label = "Dean" if is_dean else "UMU"
-        syllabus.ai_feedback = f"<b>[{role_label} returned for correction]</b><br>{comment}"
-
     elif new_status == Syllabus.Status.REJECTED:
         if not (is_dean or is_umu):
             raise PermissionDenied("Only dean or UMU can reject a syllabus.")
@@ -186,7 +194,7 @@ def change_status(user, syllabus: Syllabus, new_status: str, comment: str = ""):
 
     with transaction.atomic():
         syllabus.status = new_status
-        syllabus.save(update_fields=["status", "ai_feedback"])
+        syllabus.save(update_fields=["status"])
 
         SyllabusStatusLog.objects.create(
             syllabus=syllabus,
@@ -201,7 +209,11 @@ def change_status(user, syllabus: Syllabus, new_status: str, comment: str = ""):
             actor=user,
             action=SyllabusAuditLog.Action.STATUS_CHANGED,
             metadata={"from": old_status, "to": new_status},
-            message=f"Status changed: {_status_label(old_status)} -> {_status_label(new_status)}",
+            message=(
+                f"Status changed: {_status_label(old_status)} -> {_status_label(new_status)}"
+                if new_status != Syllabus.Status.CORRECTION
+                else f"Returned for correction by {_reviewer_label(user)}"
+            ),
         )
 
     _notify_on_status_change(syllabus, new_status, comment)

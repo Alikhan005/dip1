@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.db.models import Prefetch
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 
@@ -9,10 +10,32 @@ from core.forms import AnnouncementForm
 from core.models import Announcement
 from syllabi.models import Syllabus
 from syllabi.permissions import shared_syllabi_queryset
+from workflow.models import SyllabusStatusLog
 
 
 def _can_manage_announcements(user) -> bool:
     return user.role in ["dean", "umu"]
+
+
+def _reviewer_label_from_status_log(status_log: SyllabusStatusLog | None) -> str:
+    if not status_log:
+        return ""
+
+    if status_log.from_status == Syllabus.Status.AI_CHECK and not status_log.changed_by:
+        return "ИИ"
+    if status_log.from_status == Syllabus.Status.REVIEW_UMU:
+        return "УМУ"
+    if status_log.from_status == Syllabus.Status.REVIEW_DEAN:
+        return "деканата"
+
+    actor_role = getattr(status_log.changed_by, "role", "")
+    if actor_role == "umu":
+        return "УМУ"
+    if actor_role == "dean":
+        return "деканата"
+    if actor_role == "admin":
+        return "администратора"
+    return "проверяющего"
 
 
 def _build_dashboard_context(request, announcement_form=None):
@@ -46,21 +69,42 @@ def _build_dashboard_context(request, announcement_form=None):
 
     # ПРЕПОДАВАТЕЛЬ: Видит свои силлабусы во всех активных статусах
     if role in ["teacher", "program_leader"]:
-        my_reviews = (
+        correction_logs_qs = (
+            SyllabusStatusLog.objects.filter(to_status=Syllabus.Status.CORRECTION)
+            .select_related("changed_by")
+            .order_by("-changed_at")
+        )
+        my_reviews = list(
             Syllabus.objects.filter(
                 creator=request.user,
                 status__in=[
-                    Syllabus.Status.AI_CHECK,      # На проверке у робота
-                    Syllabus.Status.CORRECTION,    # Вернули на доработку
-                    Syllabus.Status.REVIEW_DEAN,   # Ушел к Декану
-                    Syllabus.Status.REVIEW_UMU,    # Ушел в УМУ
-                    Syllabus.Status.APPROVED,      # Утвержден
-                    Syllabus.Status.REJECTED,      # Отклонен
+                    Syllabus.Status.AI_CHECK,
+                    Syllabus.Status.CORRECTION,
+                    Syllabus.Status.REVIEW_DEAN,
+                    Syllabus.Status.REVIEW_UMU,
+                    Syllabus.Status.APPROVED,
+                    Syllabus.Status.REJECTED,
                 ],
             )
             .select_related("course")
+            .prefetch_related(
+                Prefetch("status_logs", queryset=correction_logs_qs, to_attr="correction_logs_prefetched")
+            )
             .order_by("-updated_at")[:10]
         )
+        for syllabus in my_reviews:
+            syllabus.correction_source_label = ""
+            syllabus.correction_comment_preview = ""
+            if syllabus.status != Syllabus.Status.CORRECTION:
+                continue
+
+            correction_logs = getattr(syllabus, "correction_logs_prefetched", [])
+            latest_log = correction_logs[0] if correction_logs else None
+            if not latest_log:
+                continue
+
+            syllabus.correction_source_label = _reviewer_label_from_status_log(latest_log)
+            syllabus.correction_comment_preview = (latest_log.comment or "").strip()
 
     if announcement_form is None and can_manage_announcements:
         announcement_form = AnnouncementForm()

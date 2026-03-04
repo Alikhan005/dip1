@@ -1,3 +1,5 @@
+import re
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -5,12 +7,14 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from accounts.decorators import role_required
 from catalog.models import Topic
 from catalog.services import ensure_default_courses
-from workflow.models import SyllabusAuditLog
+from workflow.models import SyllabusAuditLog, SyllabusStatusLog
 from workflow.services import change_status
 from .forms import SyllabusDetailsForm, SyllabusForm, is_allowed_syllabus_file_name
 from .models import Syllabus, SyllabusRevision, SyllabusTopic
@@ -66,6 +70,121 @@ def _parse_positive_int(value):
     if parsed <= 0:
         return None
     return parsed
+
+
+def _parse_legacy_reviewer_feedback(feedback: str) -> tuple[str, str]:
+    """Parse old feedback format like [UMU returned for correction] <comment>."""
+    raw = (feedback or "").strip()
+    if not raw:
+        return "", ""
+
+    normalized = (
+        raw.replace("<br />", "\n")
+        .replace("<br/>", "\n")
+        .replace("<br>", "\n")
+    )
+    plain = re.sub(r"<[^>]+>", "", normalized).strip()
+    if not plain:
+        return "", ""
+
+    lower = plain.lower()
+    if "[umu returned for correction]" in lower:
+        comment = re.sub(r"\[[^\]]+\]", "", plain, count=1).strip(" :\n")
+        return "УМУ", comment
+    if "[dean returned for correction]" in lower:
+        comment = re.sub(r"\[[^\]]+\]", "", plain, count=1).strip(" :\n")
+        return "Деканат", comment
+
+    return "", plain
+
+
+def _resolve_correction_context(syllabus: Syllabus) -> dict:
+    """
+    Build user-facing correction context:
+    - source label (ИИ / Деканат / УМУ)
+    - plain comment for human reviewers
+    - stage marker for progress visualization
+    """
+    context = {
+        "source_label": "",
+        "comment": "",
+        "stage_key": "draft",
+        "is_ai_feedback": False,
+    }
+
+    latest_correction = (
+        SyllabusStatusLog.objects.filter(syllabus=syllabus, to_status=Syllabus.Status.CORRECTION)
+        .select_related("changed_by")
+        .order_by("-changed_at")
+        .first()
+    )
+
+    if latest_correction:
+        from_status = latest_correction.from_status
+        if from_status == Syllabus.Status.REVIEW_UMU:
+            context["source_label"] = "УМУ"
+            context["stage_key"] = "umu"
+        elif from_status == Syllabus.Status.REVIEW_DEAN:
+            context["source_label"] = "Деканат"
+            context["stage_key"] = "dean"
+        elif from_status == Syllabus.Status.AI_CHECK:
+            context["source_label"] = "ИИ"
+            context["stage_key"] = "ai_check"
+            context["is_ai_feedback"] = True
+
+        actor_role = getattr(latest_correction.changed_by, "role", "")
+        if not context["source_label"]:
+            if actor_role == "umu":
+                context["source_label"] = "УМУ"
+                context["stage_key"] = "umu"
+            elif actor_role == "dean":
+                context["source_label"] = "Деканат"
+                context["stage_key"] = "dean"
+            elif latest_correction.changed_by:
+                context["source_label"] = (
+                    latest_correction.changed_by.get_full_name()
+                    or latest_correction.changed_by.username
+                )
+
+        context["comment"] = (latest_correction.comment or "").strip()
+
+    if not context["source_label"] and syllabus.ai_feedback:
+        legacy_source, legacy_comment = _parse_legacy_reviewer_feedback(syllabus.ai_feedback)
+        if legacy_source:
+            context["source_label"] = legacy_source
+            context["comment"] = context["comment"] or legacy_comment
+            context["stage_key"] = "umu" if legacy_source == "УМУ" else "dean"
+        else:
+            context["source_label"] = "ИИ"
+            context["stage_key"] = "ai_check"
+            context["is_ai_feedback"] = True
+
+    if not context["source_label"]:
+        context["source_label"] = "Проверяющий"
+
+    return context
+
+
+def _build_progress_context(status: str, correction_stage_key: str = "draft") -> dict:
+    if status == Syllabus.Status.DRAFT:
+        return {"width": 10, "bar_class": "bg-slate-400", "active_step": "draft"}
+    if status == Syllabus.Status.AI_CHECK:
+        return {"width": 30, "bar_class": "bg-amber-500 animate-pulse", "active_step": "ai_check"}
+    if status in [Syllabus.Status.REVIEW_DEAN, Syllabus.Status.SUBMITTED_DEAN]:
+        return {"width": 60, "bar_class": "bg-blue-500", "active_step": "dean"}
+    if status == Syllabus.Status.REVIEW_UMU:
+        return {"width": 80, "bar_class": "bg-indigo-500", "active_step": "umu"}
+    if status == Syllabus.Status.APPROVED:
+        return {"width": 100, "bar_class": "bg-green-500", "active_step": "approved"}
+    if status == Syllabus.Status.CORRECTION:
+        if correction_stage_key == "umu":
+            return {"width": 80, "bar_class": "bg-red-500", "active_step": "umu"}
+        if correction_stage_key == "dean":
+            return {"width": 60, "bar_class": "bg-red-500", "active_step": "dean"}
+        if correction_stage_key == "ai_check":
+            return {"width": 30, "bar_class": "bg-red-500", "active_step": "ai_check"}
+        return {"width": 10, "bar_class": "bg-red-500", "active_step": "draft"}
+    return {"width": 10, "bar_class": "bg-slate-400", "active_step": "draft"}
 
 
 @login_required
@@ -298,6 +417,15 @@ def syllabus_detail(request, pk):
         and is_teacher_like
         and syllabus.status in [Syllabus.Status.DRAFT, Syllabus.Status.CORRECTION]
     )
+    correction_context = (
+        _resolve_correction_context(syllabus)
+        if syllabus.status == Syllabus.Status.CORRECTION
+        else {"source_label": "", "comment": "", "stage_key": "draft", "is_ai_feedback": False}
+    )
+    progress_context = _build_progress_context(
+        syllabus.status,
+        correction_stage_key=correction_context.get("stage_key", "draft"),
+    )
 
     return render(
         request,
@@ -319,6 +447,12 @@ def syllabus_detail(request, pk):
             "teaching_methods_list": _split_lines(syllabus.teaching_methods),
             "main_literature_list": _split_lines(syllabus.main_literature) or derived_main_literature,
             "additional_literature_list": _split_lines(syllabus.additional_literature) or derived_additional_literature,
+            "correction_source_label": correction_context.get("source_label", ""),
+            "correction_comment": correction_context.get("comment", ""),
+            "correction_is_ai_feedback": correction_context.get("is_ai_feedback", False),
+            "status_progress_width": progress_context["width"],
+            "status_progress_class": progress_context["bar_class"],
+            "status_progress_step": progress_context["active_step"],
         },
     )
 
@@ -511,7 +645,20 @@ def syllabus_change_status(request, pk, new_status):
             messages.success(request, "Статус силлабуса обновлен.")
         except (PermissionDenied, ValueError) as exc:
             messages.error(request, str(exc) or "Недостаточно прав.")
-    return redirect("syllabus_detail", pk=syllabus.pk)
+    redirect_candidates = [
+        request.POST.get("next", "").strip(),
+        request.GET.get("next", "").strip(),
+        (request.META.get("HTTP_REFERER") or "").strip(),
+    ]
+    for candidate in redirect_candidates:
+        if candidate and url_has_allowed_host_and_scheme(
+            candidate,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        ):
+            return redirect(candidate)
+
+    return redirect(reverse("syllabus_detail", args=[syllabus.pk]))
 
 
 @login_required

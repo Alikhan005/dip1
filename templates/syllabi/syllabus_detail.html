@@ -56,24 +56,14 @@
   <div class="mt-6">
       <div class="relative">
           <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-slate-100">
-              {% if syllabus.status == 'draft' or syllabus.status == 'correction' %}
-                 <div style="width: 10%" class="bg-slate-400"></div>
-              {% elif syllabus.status == 'ai_check' %}
-                 <div style="width: 30%" class="bg-amber-500 animate-pulse"></div>
-              {% elif syllabus.status == 'review_dean' or syllabus.status == 'submitted_dean' %}
-                 <div style="width: 60%" class="bg-blue-500"></div>
-              {% elif syllabus.status == 'review_umu' %}
-                 <div style="width: 80%" class="bg-indigo-500"></div>
-              {% elif syllabus.status == 'approved' %}
-                 <div style="width: 100%" class="bg-green-500"></div>
-              {% endif %}
+                 <div style="width: {{ status_progress_width }}%" class="{{ status_progress_class }}"></div>
           </div>
           <div class="flex justify-between text-xs text-slate-400 font-medium uppercase tracking-wider">
-              <span class="{% if syllabus.status == 'draft' %}text-slate-800 font-bold{% endif %}">Черновик</span>
-              <span class="{% if syllabus.status == 'ai_check' %}text-amber-600 font-bold{% endif %}">Проверка ИИ</span>
-              <span class="{% if 'dean' in syllabus.status %}text-blue-600 font-bold{% endif %}">Декан</span>
-              <span class="{% if 'umu' in syllabus.status %}text-indigo-600 font-bold{% endif %}">УМУ</span>
-              <span class="{% if syllabus.status == 'approved' %}text-green-600 font-bold{% endif %}">Готово</span>
+              <span class="{% if status_progress_step == 'draft' %}text-slate-800 font-bold{% endif %}">Черновик</span>
+              <span class="{% if status_progress_step == 'ai_check' %}text-amber-600 font-bold{% endif %}">Проверка ИИ</span>
+              <span class="{% if status_progress_step == 'dean' %}text-blue-600 font-bold{% endif %}">Декан</span>
+              <span class="{% if status_progress_step == 'umu' %}text-indigo-600 font-bold{% endif %}">УМУ</span>
+              <span class="{% if status_progress_step == 'approved' %}text-green-600 font-bold{% endif %}">Готово</span>
           </div>
       </div>
   </div>
@@ -131,10 +121,21 @@
         <div class="flex items-start gap-4">
             <div class="text-3xl text-red-500"><i class="fas fa-exclamation-circle"></i></div>
             <div class="w-full">
-                <h3 class="text-lg font-bold text-red-900 mb-2">Есть замечания</h3>
+                <h3 class="text-lg font-bold text-red-900 mb-2">
+                    Есть замечания
+                    {% if correction_source_label %} (возврат: {{ correction_source_label }}){% endif %}
+                </h3>
                 
                 <div class="bg-white p-4 rounded-lg border border-red-100 text-sm text-slate-700">
-                    {{ syllabus.ai_feedback|safe }}
+                    {% if correction_is_ai_feedback %}
+                        {{ syllabus.ai_feedback|safe }}
+                    {% elif correction_comment %}
+                        {{ correction_comment|linebreaksbr }}
+                    {% elif syllabus.ai_feedback %}
+                        {{ syllabus.ai_feedback|safe }}
+                    {% else %}
+                        Причина возврата не указана.
+                    {% endif %}
                 </div>
             </div>
         </div>

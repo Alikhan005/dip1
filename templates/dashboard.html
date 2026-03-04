@@ -104,7 +104,6 @@
       <div class="flex flex-wrap gap-2 mt-4">
         <a href="{% url 'syllabus_create' %}" class="btn-secondary">Создать силлабус</a>
         <a href="{% url 'course_create' %}" class="btn-primary">Создать курс</a>
-        <a href="{% url 'upload_pdf' %}" class="btn-secondary">Загрузить силлабус</a>
       </div>
     {% endif %}
   </div>
@@ -161,6 +160,14 @@
                   <div>
                     <div class="approval-item__title">{{ syllabus.course.code }} {{ syllabus.semester }}</div>
                     <div class="approval-item__meta">{{ syllabus.course.display_title }}</div>
+                    {% if syllabus.status == 'correction' and syllabus.correction_source_label %}
+                      <div class="approval-item__meta text-red-700">
+                        Возврат от {{ syllabus.correction_source_label }}
+                        {% if syllabus.correction_comment_preview %}
+                          : {{ syllabus.correction_comment_preview|truncatechars:100 }}
+                        {% endif %}
+                      </div>
+                    {% endif %}
                   </div>
                   <span class="status-pill status-pill--{{ syllabus.status }}">{{ syllabus.get_status_display }}</span>
                   <div class="approval-actions">
@@ -190,11 +197,13 @@
                     {% if syllabus.creator != user %}
                       <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'review_umu' %}" class="approval-action-form">
                         {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
                         <input type="text" name="comment" placeholder="Комментарий" class="approval-input">
                         <button class="btn-primary">Утвердить</button>
                       </form>
                       <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'correction' %}" class="approval-action-form">
                         {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
                         <input type="text" name="comment" placeholder="Причина отклонения" class="approval-input" required>
                         <button class="btn-secondary">Отклонить</button>
                       </form>
@@ -224,11 +233,13 @@
                     {% if syllabus.creator != user %}
                       <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'approved' %}" class="approval-action-form">
                         {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
                         <input type="text" name="comment" placeholder="Комментарий" class="approval-input">
                         <button class="btn-primary">Финально утвердить</button>
                       </form>
                       <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'correction' %}" class="approval-action-form">
                         {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
                         <input type="text" name="comment" placeholder="Причина отклонения" class="approval-input" required>
                         <button class="btn-secondary">Отклонить</button>
                       </form>

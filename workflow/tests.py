@@ -186,3 +186,22 @@ class WorkflowRoleTests(TestCase):
         syllabus.refresh_from_db()
         self.assertEqual(syllabus.status, Syllabus.Status.CORRECTION)
         self.assertEqual(syllabus.ai_feedback, "<p>Need improvements</p>")
+
+    def test_manual_correction_keeps_existing_ai_feedback(self):
+        teacher = self._create_user("teacher_manual_feedback", "teacher")
+        umu = self._create_user("umu_manual_feedback", "umu")
+        course = self._create_course(teacher, code="CS406")
+        syllabus = Syllabus.objects.create(
+            course=course,
+            creator=teacher,
+            semester="Fall 2025",
+            academic_year="2025-2026",
+            status=Syllabus.Status.REVIEW_UMU,
+            ai_feedback="<p>AI baseline feedback</p>",
+        )
+
+        change_status(umu, syllabus, Syllabus.Status.CORRECTION, "Исправьте литературу.")
+
+        syllabus.refresh_from_db()
+        self.assertEqual(syllabus.status, Syllabus.Status.CORRECTION)
+        self.assertEqual(syllabus.ai_feedback, "<p>AI baseline feedback</p>")
