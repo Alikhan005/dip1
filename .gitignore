@@ -1,4 +1,5 @@
 .env
+.env.production
 venv/
 venv312/
 __pycache__/

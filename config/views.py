@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_POST
 
@@ -36,6 +36,105 @@ def _reviewer_label_from_status_log(status_log: SyllabusStatusLog | None) -> str
     if actor_role == "admin":
         return "администратора"
     return "проверяющего"
+
+
+def _notification_actor_label(status_log: SyllabusStatusLog) -> str:
+    if status_log.changed_by is None:
+        if status_log.from_status == Syllabus.Status.AI_CHECK:
+            return "ИИ"
+        return "Система"
+
+    actor_role = getattr(status_log.changed_by, "role", "")
+    if actor_role == "umu":
+        return "УМУ"
+    if actor_role == "dean":
+        return "Деканат"
+    if actor_role == "admin":
+        return "Администратор"
+    return status_log.changed_by.get_full_name() or status_log.changed_by.username
+
+
+def _notification_title(status_log: SyllabusStatusLog) -> str:
+    course_code = getattr(status_log.syllabus.course, "code", f"ID {status_log.syllabus_id}")
+    status_to = status_log.to_status
+
+    if status_to == Syllabus.Status.REVIEW_DEAN:
+        return f"{course_code}: отправлен на согласование декану"
+    if status_to == Syllabus.Status.REVIEW_UMU:
+        return f"{course_code}: отправлен на согласование в УМУ"
+    if status_to == Syllabus.Status.CORRECTION:
+        return f"{course_code}: возвращён на доработку"
+    if status_to == Syllabus.Status.APPROVED:
+        return f"{course_code}: силлабус утверждён"
+    if status_to == Syllabus.Status.REJECTED:
+        return f"{course_code}: силлабус отклонён"
+    if status_to == Syllabus.Status.AI_CHECK:
+        return f"{course_code}: отправлен на проверку ИИ"
+    return f"{course_code}: статус обновлён"
+
+
+def _notification_body(status_log: SyllabusStatusLog) -> str:
+    comment = (status_log.comment or "").strip()
+    if comment:
+        return comment
+
+    from_label = status_log.from_status_label
+    to_label = status_log.to_status_label
+    return f"Статус изменён: {from_label} -> {to_label}"
+
+
+def _notification_logs_queryset(user):
+    base_qs = (
+        SyllabusStatusLog.objects.select_related("syllabus__course", "syllabus__creator", "changed_by")
+        .exclude(to_status=Syllabus.Status.DRAFT)
+    )
+
+    is_admin = bool(
+        getattr(user, "is_superuser", False)
+        or getattr(user, "is_staff", False)
+        or getattr(user, "role", "") == "admin"
+    )
+    if not is_admin:
+        visibility_filter = Q(syllabus__creator=user) | Q(changed_by=user)
+        role = getattr(user, "role", "")
+        if role == "dean":
+            visibility_filter |= Q(to_status=Syllabus.Status.REVIEW_DEAN)
+        elif role == "umu":
+            visibility_filter |= Q(to_status=Syllabus.Status.REVIEW_UMU)
+        base_qs = base_qs.filter(visibility_filter)
+
+    return base_qs.order_by("-changed_at").distinct()
+
+
+def _count_unread_notifications(user, last_seen_at) -> int:
+    logs_qs = _notification_logs_queryset(user)
+    if last_seen_at is None:
+        return logs_qs.count()
+    return logs_qs.filter(changed_at__gt=last_seen_at).count()
+
+
+def _latest_notification_changed_at(user):
+    return _notification_logs_queryset(user).values_list("changed_at", flat=True).first()
+
+
+def _build_dashboard_notifications(user, limit: int | None = 6) -> list[dict]:
+    logs_qs = _notification_logs_queryset(user)
+    logs = logs_qs[:limit] if limit is not None else logs_qs
+    notifications = []
+    for log in logs:
+        creator = log.syllabus.creator
+        creator_name = creator.get_full_name() or creator.username
+        notifications.append(
+            {
+                "syllabus_id": log.syllabus_id,
+                "title": _notification_title(log),
+                "body": _notification_body(log),
+                "actor_label": _notification_actor_label(log),
+                "creator_name": creator_name,
+                "changed_at": log.changed_at,
+            }
+        )
+    return notifications
 
 
 def _build_dashboard_context(request, announcement_form=None):

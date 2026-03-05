@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
   <script src="https://unpkg.com/htmx.org@2.0.0"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="{% static 'css/style.css' %}?v=13">
+  <link rel="stylesheet" href="{% static 'css/style.css' %}?v=14">
 </head>
 <body class="bg-slate-100 text-slate-800 {% block body_class %}{% endblock %}">
   {% if user.is_authenticated and not hide_nav %}
@@ -56,6 +56,44 @@
         {% endif %}
       </div>
       {% if user.is_authenticated %}
+        <div class="site-nav__help">
+          <a href="{% url 'workflow_guide' %}" class="nav-link nav-link--guide">
+            <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+            <span>Инструкция</span>
+          </a>
+        </div>
+        <div class="site-nav__alerts" data-alerts data-mark-read-url="{% url 'notifications_mark_read' %}">
+          <button
+            type="button"
+            class="site-nav__alerts-toggle"
+            data-alerts-toggle
+            aria-expanded="false"
+            aria-controls="site-nav-alerts-panel"
+          >
+            <span class="site-nav__alerts-icon" aria-hidden="true">
+              <i class="fa-regular fa-bell"></i>
+            </span>
+            <span class="site-nav__alerts-label">Уведомления</span>
+            {% if sidebar_notifications_count %}
+              <span class="site-nav__alerts-badge">{{ sidebar_notifications_count }}</span>
+            {% endif %}
+          </button>
+          <div id="site-nav-alerts-panel" class="site-nav__alerts-panel" data-alerts-panel hidden>
+            <div class="site-nav__alerts-header" data-alerts-header>Новых уведомлений: {{ sidebar_notifications_count }}</div>
+            <div class="site-nav__alerts-list">
+              {% if sidebar_notifications %}
+                {% for item in sidebar_notifications %}
+                  <a href="{% url 'syllabus_detail' item.syllabus_id %}" class="site-nav__alerts-item">
+                    <span class="site-nav__alerts-item-title">{{ item.title }}</span>
+                    <span class="site-nav__alerts-item-meta">{{ item.changed_at|date:"d.m.Y H:i" }} - {{ item.actor_label }}</span>
+                  </a>
+                {% endfor %}
+              {% else %}
+                <div class="site-nav__alerts-empty">Новых уведомлений нет.</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
         <div class="flex items-center space-x-3 site-nav__user">
           <a href="{% url 'profile' %}" class="nav-link">Профиль</a>
           <span class="text-sm text-gray-700">{{ user.get_full_name|default:user.username }}</span>
@@ -178,9 +216,113 @@
     })();
 
     (function () {
+      const alerts = document.querySelector("[data-alerts]");
+      if (!alerts) return;
+
+      const toggle = alerts.querySelector("[data-alerts-toggle]");
+      const panel = alerts.querySelector("[data-alerts-panel]");
+      const header = alerts.querySelector("[data-alerts-header]");
+      const markReadUrl = alerts.dataset.markReadUrl;
+      if (!toggle || !panel) return;
+
+      const getCookie = (name) => {
+        const prefix = `${name}=`;
+        const cookies = document.cookie ? document.cookie.split(";") : [];
+        for (const cookie of cookies) {
+          const trimmed = cookie.trim();
+          if (trimmed.startsWith(prefix)) {
+            return decodeURIComponent(trimmed.slice(prefix.length));
+          }
+        }
+        return "";
+      };
+
+      const updateBadge = (count) => {
+        const normalized = Number.isFinite(count) ? Math.max(0, Math.trunc(count)) : 0;
+        const existing = alerts.querySelector(".site-nav__alerts-badge");
+        if (normalized <= 0) {
+          if (existing) {
+            existing.remove();
+          }
+        } else if (existing) {
+          existing.textContent = String(normalized);
+        } else {
+          const badge = document.createElement("span");
+          badge.className = "site-nav__alerts-badge";
+          badge.textContent = String(normalized);
+          toggle.appendChild(badge);
+        }
+        if (header) {
+          header.textContent = `Новых уведомлений: ${normalized}`;
+        }
+      };
+
+      const markRead = async () => {
+        const badge = alerts.querySelector(".site-nav__alerts-badge");
+        if (!markReadUrl || !badge || alerts.dataset.marking === "1") return;
+
+        alerts.dataset.marking = "1";
+        try {
+          const response = await fetch(markReadUrl, {
+            method: "POST",
+            headers: {
+              "X-CSRFToken": getCookie("csrftoken"),
+              "X-Requested-With": "XMLHttpRequest",
+            },
+          });
+          if (!response.ok) return;
+          const payload = await response.json().catch(() => ({}));
+          const unreadCount = Number(payload.unread_count || 0);
+          updateBadge(unreadCount);
+        } catch (_) {
+          // no-op: keep current value when request fails
+        } finally {
+          delete alerts.dataset.marking;
+        }
+      };
+
+      const setOpen = (isOpen) => {
+        panel.hidden = !isOpen;
+        alerts.classList.toggle("site-nav__alerts--open", isOpen);
+        toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+        if (isOpen) {
+          void markRead();
+        }
+      };
+
+      toggle.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setOpen(panel.hidden);
+      });
+
+      alerts.querySelectorAll(".site-nav__alerts-item").forEach((item) => {
+        item.addEventListener("click", () => setOpen(false));
+      });
+
+      document.addEventListener("click", (event) => {
+        if (!alerts.contains(event.target)) {
+          setOpen(false);
+        }
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          setOpen(false);
+        }
+      });
+
+      window.addEventListener("resize", () => {
+        if (window.innerWidth >= 640) {
+          setOpen(false);
+        }
+      });
+    })();
+
+    (function () {
       const nav = document.querySelector("[data-site-nav]");
       if (!nav) return;
-      const links = nav.querySelectorAll(".site-nav__links .nav-link, .site-nav__user .nav-link");
+      const links = nav.querySelectorAll(".site-nav__links .nav-link, .site-nav__help .nav-link, .site-nav__user .nav-link");
       const normalize = (path) => {
         const clean = (path || "").replace(/\/+$/, "");
         return clean || "/";

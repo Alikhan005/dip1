@@ -86,8 +86,12 @@ DEBUG = _env_bool("DJANGO_DEBUG", True)
 ALLOWED_HOSTS = (
     _env_list("DJANGO_ALLOWED_HOSTS")
     or _env_list("ALLOWED_HOSTS")
-    or ["127.0.0.1", "localhost"]
+    or ["127.0.0.1", "localhost", "[::1]", "testserver"]
 )
+if DEBUG:
+    for local_host in ("127.0.0.1", "localhost", "[::1]", "testserver"):
+        if local_host not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(local_host)
 
 CSRF_TRUSTED_ORIGINS = _env_list("DJANGO_CSRF_TRUSTED_ORIGINS") or _env_list("CSRF_TRUSTED_ORIGINS")
 
@@ -143,6 +147,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "django.template.context_processors.static",
+                "core.context_processors.sidebar_notifications",
             ],
         },
     },

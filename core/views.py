@@ -2,10 +2,14 @@ import os
 from io import BytesIO
 from pathlib import Path
 
+from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.http import JsonResponse
+from django.shortcuts import render
+from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 
 def _check_db():
@@ -120,3 +124,29 @@ def diagnostics(request):
 
     code = 200 if result["status"] == "ok" else 500
     return JsonResponse(result, status=code)
+
+
+@login_required
+def workflow_guide(request):
+    return render(request, "guide/workflow_guide.html")
+
+
+@login_required
+@require_POST
+def mark_notifications_read(request):
+    from config.views import _count_unread_notifications, _latest_notification_changed_at
+    from core.models import NotificationState
+
+    state, _ = NotificationState.objects.get_or_create(user=request.user)
+    latest_changed_at = _latest_notification_changed_at(request.user)
+
+    if latest_changed_at is None:
+        if state.last_seen_at is None:
+            state.last_seen_at = timezone.now()
+            state.save(update_fields=["last_seen_at", "updated_at"])
+    elif state.last_seen_at is None or latest_changed_at > state.last_seen_at:
+        state.last_seen_at = latest_changed_at
+        state.save(update_fields=["last_seen_at", "updated_at"])
+
+    unread_count = _count_unread_notifications(request.user, state.last_seen_at)
+    return JsonResponse({"ok": True, "unread_count": unread_count})
