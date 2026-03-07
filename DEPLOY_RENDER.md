@@ -22,6 +22,7 @@ Render creates:
 1. Free web service sleeps on inactivity.
 2. Free Render Postgres has storage/time limits (check current Render pricing).
 3. Worker is launched inside the same web service process via `deploy/render-start.sh`.
+4. HTTPS redirect stays enabled in production because Django trusts Render's `X-Forwarded-Proto` header.
 
 ## 4. First check
 

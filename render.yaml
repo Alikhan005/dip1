@@ -22,8 +22,6 @@ services:
         value: "https://*.onrender.com"
       - key: CSRF_TRUSTED_ORIGINS
         value: "https://*.onrender.com"
-      - key: DJANGO_SECURE_SSL_REDIRECT
-        value: "False"
       - key: AI_WORKER_PRELOAD_MODEL
         value: "false"
       - key: AI_WORKER_IDLE_SLEEP

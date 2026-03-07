@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
   <script src="https://unpkg.com/htmx.org@2.0.0"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="{% static 'css/style.css' %}?v=14">
+  <link rel="stylesheet" href="{% static 'css/style.css' %}?v=17">
 </head>
 <body class="bg-slate-100 text-slate-800 {% block body_class %}{% endblock %}">
   {% if user.is_authenticated and not hide_nav %}
@@ -96,7 +96,7 @@
         </div>
         <div class="flex items-center space-x-3 site-nav__user">
           <a href="{% url 'profile' %}" class="nav-link">Профиль</a>
-          <span class="text-sm text-gray-700">{{ user.get_full_name|default:user.username }}</span>
+          <span class="site-nav__user-name text-sm text-gray-700">{{ user.get_full_name|default:user.username }}</span>
           <a href="{% url 'logout' %}" class="btn-secondary">Выйти</a>
         </div>
       {% endif %}
@@ -104,10 +104,11 @@
   </nav>
   {% endif %}
   <main class="page-container">
+    <div id="flash-stack" class="flash-stack" data-flash-stack aria-live="polite" aria-label="Уведомления"></div>
     {% if messages %}
-      <div class="space-y-2 mb-4">
+      <div class="flash-messages-source" hidden data-flash-messages-source>
         {% for message in messages %}
-          <div class="flash flash--{{ message.tags|default:'info' }}">{{ message }}</div>
+          <div data-flash-server data-flash-tag="{{ message.tags|default:'info' }}">{{ message }}</div>
         {% endfor %}
       </div>
     {% endif %}
@@ -213,6 +214,114 @@
           setOpen(false);
         }
       });
+    })();
+
+    (function () {
+      const flashStack = document.querySelector("[data-flash-stack]");
+      if (!flashStack) return;
+
+      const LEGACY_STORAGE_KEY = "almau_flash_messages_v1";
+      const LEGACY_WINDOW_NAME_PREFIX = `${LEGACY_STORAGE_KEY}::v1::`;
+      const sourceContainer = document.querySelector("[data-flash-messages-source]");
+
+      const classesByTag = {
+        error: "flash--error",
+        success: "flash--success",
+        warning: "flash--warning",
+        info: "flash--info",
+      };
+
+      const normalizeText = (value) => (value || "").replace(/\s+/g, " ").trim();
+      const normalizeTag = (tag) => (tag || "info").toLowerCase();
+
+      const iconByTag = (tag) => {
+        switch (normalizeTag(tag)) {
+          case "success":
+            return "fa-circle-check";
+          case "error":
+            return "fa-circle-xmark";
+          case "warning":
+            return "fa-triangle-exclamation";
+          default:
+            return "fa-circle-info";
+        }
+      };
+
+      const renderFlash = (tag, text, id) => {
+        const normalizedTag = normalizeTag(tag);
+        const normalizedText = normalizeText(text);
+        if (!normalizedText) return;
+
+        const item = document.createElement("div");
+        item.className = `flash ${classesByTag[normalizedTag] || classesByTag.info}`;
+        item.setAttribute("role", "status");
+        item.setAttribute("data-flash-id", id);
+
+        const icon = document.createElement("i");
+        icon.className = `fa-solid ${iconByTag(normalizedTag)} flash__icon`;
+        item.appendChild(icon);
+
+        const content = document.createElement("div");
+        content.className = "flash__content";
+        content.textContent = normalizedText;
+        item.appendChild(content);
+
+        const close = document.createElement("button");
+        close.type = "button";
+        close.className = "flash__close";
+        close.setAttribute("aria-label", "Закрыть уведомление");
+        close.innerHTML = "&times;";
+        close.addEventListener("click", () => {
+          item.remove();
+          if (flashStack.children.length === 0) {
+            flashStack.remove();
+          }
+        });
+        item.appendChild(close);
+
+        flashStack.appendChild(item);
+      };
+
+      const shown = new Set();
+
+      const clearLegacyStored = () => {
+        [window.localStorage, window.sessionStorage].forEach((candidate) => {
+          if (!candidate) return;
+          try {
+            candidate.removeItem(LEGACY_STORAGE_KEY);
+          } catch (_) {
+            // ignore storage access failures
+          }
+        });
+
+        if (typeof window.name === "string" && window.name.startsWith(LEGACY_WINDOW_NAME_PREFIX)) {
+          window.name = "";
+        }
+      };
+
+      const renderFromSource = () => {
+        if (!sourceContainer) return;
+        const nodes = Array.from(sourceContainer.querySelectorAll("[data-flash-server]"));
+        nodes.forEach((node) => {
+          const tag = normalizeTag(node.dataset.flashTag);
+          const text = normalizeText(node.textContent);
+          const id = `${tag}|${text}`;
+          if (!text || shown.has(id)) return;
+
+          shown.add(id);
+          renderFlash(tag, text, id);
+        });
+        if (sourceContainer) {
+          sourceContainer.remove();
+        }
+      };
+
+      clearLegacyStored();
+      renderFromSource();
+
+      if (flashStack.children.length === 0) {
+        flashStack.remove();
+      }
     })();
 
     (function () {

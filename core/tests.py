@@ -2,7 +2,7 @@ from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.conf import settings
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
 from catalog.models import Course
@@ -12,6 +12,14 @@ from workflow.models import SyllabusStatusLog
 
 User = get_user_model()
 MOJIBAKE_MARKERS = ("РџР", "РЎР", "Р“Р", "СЃР", "С‚Р")
+
+
+class SecuritySettingsTests(SimpleTestCase):
+    def test_secure_proxy_ssl_header_is_configured_for_reverse_proxies(self):
+        self.assertEqual(
+            settings.SECURE_PROXY_SSL_HEADER,
+            ("HTTP_X_FORWARDED_PROTO", "https"),
+        )
 
 
 class DiagnosticsAccessTests(TestCase):

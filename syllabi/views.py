@@ -26,6 +26,18 @@ def _can_view_syllabus(user, syllabus: Syllabus) -> bool:
     return can_view_syllabus(user, syllabus)
 
 
+AI_CHECK_START_STATUSES = [Syllabus.Status.DRAFT, Syllabus.Status.CORRECTION, Syllabus.Status.AI_CHECK]
+
+
+def _can_request_ai_check(user, syllabus: Syllabus) -> bool:
+    is_admin_like = bool(
+        getattr(user, "is_superuser", False)
+        or getattr(user, "is_admin_like", False)
+        or getattr(user, "role", "") == "admin"
+    )
+    return user == syllabus.creator or is_admin_like
+
+
 def _split_lines(value: str) -> list[str]:
     if not value:
         return []
@@ -612,11 +624,11 @@ def syllabus_pdf(request, pk):
 @require_POST
 def send_to_ai_check(request, pk):
     syllabus = get_object_or_404(Syllabus, pk=pk)
-    if request.user != syllabus.creator:
-        messages.error(request, "Только создатель может отправить силлабус на проверку.")
+    if not _can_request_ai_check(request.user, syllabus):
+        messages.error(request, "Нет прав для отправки на проверку ИИ.")
         return redirect('syllabus_detail', pk=pk)
 
-    if syllabus.status not in [Syllabus.Status.DRAFT, Syllabus.Status.CORRECTION]:
+    if syllabus.status not in AI_CHECK_START_STATUSES:
         messages.warning(request, "Силлабус уже на проверке или утвержден.")
         return redirect('syllabus_detail', pk=pk)
 
@@ -627,7 +639,8 @@ def send_to_ai_check(request, pk):
         return redirect("syllabus_detail", pk=pk)
 
     syllabus.status = Syllabus.Status.AI_CHECK
-    syllabus.save(update_fields=['status'])
+    syllabus.ai_feedback = ""
+    syllabus.save(update_fields=['status', 'ai_feedback'])
     SyllabusRevision.objects.create(
         syllabus=syllabus, changed_by=request.user, version_number=syllabus.version_number, note="Отправлено на проверку ИИ"
     )

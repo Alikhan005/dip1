@@ -5,7 +5,7 @@ from pathlib import Path
 
 import httpx
 
-# Настраиваем логгер для отладки
+# Configure module logger.
 logger = logging.getLogger(__name__)
 
 try:
@@ -26,10 +26,6 @@ _INIT_LOCK = threading.Lock()
 _RUN_LOCK = threading.Lock()
 _ENV_LOADED = False
 
-# ИСПРАВЛЕНИЕ: Убираем жесткую привязку к диску C.
-# Путь должен задаваться через .env файл или быть относительным.
-_DEFAULT_MODEL_PATH = "" 
-
 
 def _ensure_env_loaded() -> None:
     global _ENV_LOADED
@@ -38,7 +34,7 @@ def _ensure_env_loaded() -> None:
     _ENV_LOADED = True
     if load_dotenv is None:
         return
-    # Ищем .env в корне проекта (на 2 уровня выше этого файла)
+    # Try loading .env from the project root (2 levels above).
     root = Path(__file__).resolve().parents[1]
     env_path = root / ".env"
     if env_path.exists():
@@ -46,19 +42,19 @@ def _ensure_env_loaded() -> None:
 
 
 def _remote_config() -> dict | None:
-    """Проверяет настройки для удаленного API (OpenAI/Mistral/LocalAI)."""
+    """Load remote LLM settings (OpenAI/Mistral/LocalAI compatible API)."""
     _ensure_env_loaded()
     api_key = os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY")
-    
-    # Если ключа нет, удаленный режим не включаем
+
+    # If key is missing, remote mode is not configured.
     if not api_key:
         return None
-        
+
     api_url = os.getenv("LLM_API_URL", "https://api.openai.com/v1/chat/completions")
     model = os.getenv("LLM_REMOTE_MODEL", "").strip() or "gpt-4o-mini"
     timeout = float(os.getenv("LLM_REMOTE_TIMEOUT", "30"))
     org = os.getenv("OPENAI_ORG", "").strip()
-    
+
     return {
         "api_key": api_key,
         "api_url": api_url,
@@ -69,21 +65,21 @@ def _remote_config() -> dict | None:
 
 
 def _use_remote() -> bool:
-    """Определяет, нужно ли использовать удаленный API вместо локальной модели."""
+    """Whether remote API should be used instead of local model."""
     provider = os.getenv("LLM_PROVIDER", "auto").strip().lower()
-    
+
     if provider in {"local", "llama", "llama-cpp"}:
         return False
-    
+
     if provider in {"remote", "api", "openai", "openrouter", "groq", "mistral"}:
         return True
-    
-    # Если auto, то используем remote, если есть конфиг
+
+    # With auto mode try remote only when remote config exists.
     return _remote_config() is not None
 
 
 def _split_prompt(prompt: str) -> tuple[str, str]:
-    """Разделяет промпт на system и user части для API."""
+    """Split prompt to system/user sections for API payload."""
     if "<|im_start|>system" not in prompt:
         return "", prompt
     system = ""
@@ -141,51 +137,37 @@ def _generate_remote_text(
     choices = data.get("choices") or []
     if not choices:
         raise RuntimeError("Remote LLM returned no choices.")
-        
+
     choice = choices[0]
-    # Обработка разных форматов ответа
+    # Support both chat and completion-style response formats.
     if isinstance(choice, dict):
         message = choice.get("message")
         if isinstance(message, dict) and message.get("content"):
             return str(message["content"]).strip()
         if choice.get("text"):
             return str(choice["text"]).strip()
-            
+
     raise RuntimeError("Remote LLM returned an unexpected response.")
 
 
 def _resolve_model_path() -> str:
     """
-    Ищет файл модели.
-    Приоритет:
-    1. Переменная окружения LLM_MODEL_PATH
-    2. Папка models/qwen/ внутри проекта
+    Resolve local model path (used only for explicit local provider runs).
+    Supported source:
+    1. LLM_MODEL_PATH env variable.
     """
     _ensure_env_loaded()
-    
-    # 1. Проверяем явную настройку в .env
     env_path = os.getenv("LLM_MODEL_PATH")
     if env_path and Path(env_path).exists():
         logger.info(f"Using model from env: {env_path}")
         return env_path
+    if env_path:
+        logger.warning(f"LLM_MODEL_PATH is set but file does not exist: {env_path}")
 
-    # 2. Проверяем папку внутри проекта (переносимый вариант)
-    root = Path(__file__).resolve().parents[1]
-    
-    # Варианты путей внутри проекта (можно добавить свои)
-    local_paths = [
-        root / "models" / "qwen" / "Qwen2.5-7B-Instruct.Q4_K.gguf",
-        root / "ai_checker" / "models" / "Qwen2.5-7B-Instruct.Q4_K.gguf",
-    ]
-    
-    for path in local_paths:
-        if path.exists():
-            logger.info(f"Found local model: {path}")
-            return str(path)
-
-    # Если ничего не нашли - возвращаем пустую строку, 
-    # что вызовет ошибку при попытке загрузки, если не настроен удаленный API.
-    logger.warning("No local model found. Ensure LLM_MODEL_PATH is set or use Remote API.")
+    logger.warning(
+        "No local model path found. Set LLM_MODEL_PATH for local mode "
+        "or configure remote API (LLM_PROVIDER=remote / LLM_API_KEY)."
+    )
     return ""
 
 
@@ -220,26 +202,26 @@ def get_llm() -> "Llama":
         with _INIT_LOCK:
             if _LLM is None:
                 model_path = _resolve_model_path()
-                
-                # Если модель не найдена, кидаем понятную ошибку
+
+                # If model path is invalid, fail with a clear error.
                 if not model_path or not Path(model_path).exists():
                     raise RuntimeError(
                         f"LLM model not found at '{model_path}'. "
                         "Please set LLM_MODEL_PATH in .env to your .gguf file location."
                     )
 
-                # Загружаем параметры из .env или берем безопасные значения по умолчанию
+                # Load runtime parameters from .env or defaults.
                 n_ctx = int(os.getenv("LLM_CTX", "4096"))
-                
-                # Авто-определение потоков (оставляем 2 ядра системе)
+
+                # Auto-thread heuristic keeps 2 cores for the system.
                 default_threads = max(1, (os.cpu_count() or 4) - 2)
                 n_threads = int(os.getenv("LLM_THREADS", str(default_threads)))
-                
+
                 n_batch = int(os.getenv("LLM_BATCH", "512"))
                 n_gpu_layers = int(os.getenv("LLM_GPU_LAYERS", "0"))
 
                 logger.info(f"Loading Llama model from {model_path} (ctx={n_ctx}, threads={n_threads})...")
-                
+
                 try:
                     _LLM = Llama(
                         model_path=model_path,
@@ -264,20 +246,20 @@ def generate_text(
     top_p: float = 0.9,
 ) -> str:
     """
-    Главная функция генерации.
-    Сама решает, использовать локальную модель или API.
+    High-level text generation entry point.
+    Chooses remote API first, then local model.
     """
-    # 1. Пробуем удаленный API, если он настроен
+    # 1. Try remote API first when enabled.
     if _use_remote():
         try:
             return _generate_remote_text(prompt, max_tokens, temperature, top_p)
         except Exception as e:
-            # Если API упал, а локальной модели нет - падаем. 
-            # Если бы была логика фоллбэка, она была бы здесь.
+            # If remote fails, rethrow. No local fallback is executed unless
+            # provider is configured to allow it.
             logger.error(f"Remote generation failed: {e}")
             raise e
 
-    # 2. Используем локальную модель
+    # 2. Fallback to local model when remote is disabled.
     llm = get_llm()
     with _RUN_LOCK:
         output = llm(

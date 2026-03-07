@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+from django.core.exceptions import ImproperlyConfigured
+
 try:
     from dotenv import load_dotenv  # type: ignore
 except Exception:  # pragma: no cover - optional dependency
@@ -51,6 +53,16 @@ def _env_list(name: str, default: list[str] | None = None) -> list[str]:
     return [item.strip() for item in raw.split(",") if item.strip()]
 
 
+def _env_pair(name: str, default: tuple[str, str] | None = None) -> tuple[str, str] | None:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    parts = [item.strip() for item in raw.split(",", 1)]
+    if len(parts) != 2 or not all(parts):
+        return default
+    return parts[0], parts[1]
+
+
 def _database_from_url(url: str) -> dict:
     parsed = urlparse(url)
     scheme = parsed.scheme.lower()
@@ -76,12 +88,20 @@ def _database_from_url(url: str) -> dict:
     raise ValueError(f"Unsupported DATABASE_URL scheme: {scheme}")
 
 
+_DEFAULT_DEV_SECRET_KEY = "django-insecure-eay#!&5+t&u54la8ems-zm*nc!6bv5_7_gm*u2@0*q5z$tqsvl"
 SECRET_KEY = os.getenv(
     "DJANGO_SECRET_KEY",
-    "django-insecure-eay#!&5+t&u54la8ems-zm*nc!6bv5_7_gm*u2@0*q5z$tqsvl",
+    _DEFAULT_DEV_SECRET_KEY,
 )
 
 DEBUG = _env_bool("DJANGO_DEBUG", True)
+
+if not DEBUG and SECRET_KEY in {
+    "",
+    _DEFAULT_DEV_SECRET_KEY,
+    "CHANGE_ME_TO_A_LONG_RANDOM_SECRET_KEY",
+}:
+    raise ImproperlyConfigured("Set a real DJANGO_SECRET_KEY before running in production.")
 
 ALLOWED_HOSTS = (
     _env_list("DJANGO_ALLOWED_HOSTS")
@@ -277,4 +297,8 @@ CSRF_COOKIE_SECURE = _env_bool("DJANGO_CSRF_COOKIE_SECURE", not DEBUG)
 SECURE_HSTS_SECONDS = _env_int("DJANGO_SECURE_HSTS_SECONDS", 31536000 if not DEBUG else 0)
 SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool("DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", not DEBUG)
 SECURE_HSTS_PRELOAD = _env_bool("DJANGO_SECURE_HSTS_PRELOAD", not DEBUG)
+SECURE_PROXY_SSL_HEADER = _env_pair(
+    "DJANGO_SECURE_PROXY_SSL_HEADER",
+    ("HTTP_X_FORWARDED_PROTO", "https"),
+)
 X_FRAME_OPTIONS = os.getenv("DJANGO_X_FRAME_OPTIONS", "DENY" if not DEBUG else "SAMEORIGIN").upper()

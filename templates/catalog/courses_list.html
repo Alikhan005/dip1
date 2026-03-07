@@ -37,7 +37,7 @@
 </div>
 
 {% if courses %}
-  <table class="table">
+  <table class="table responsive-table">
     <thead>
       <tr class="border-b">
         <th class="text-left p-2">Код</th>
@@ -50,11 +50,11 @@
     <tbody>
     {% for course in courses %}
       <tr class="border-b">
-        <td class="p-2">{{ course.code }}</td>
-        <td class="p-2">{{ course.display_title }}</td>
-        <td class="p-2">{{ course.available_languages_display }}</td>
-        <td class="p-2">{{ course.is_shared|yesno:"Да,Нет" }}</td>
-        <td class="p-2">
+        <td class="p-2" data-label="Код">{{ course.code }}</td>
+        <td class="p-2" data-label="Название">{{ course.display_title }}</td>
+        <td class="p-2" data-label="Языки">{{ course.available_languages_display }}</td>
+        <td class="p-2" data-label="Общий">{{ course.is_shared|yesno:"Да,Нет" }}</td>
+        <td class="p-2 responsive-table__actions" data-label="Действие">
           <a href="{% url 'course_detail' course.pk %}" class="link">Открыть</a>
         </td>
       </tr>

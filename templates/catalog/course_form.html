@@ -1,10 +1,153 @@
 {% extends "base.html" %}
-{% block title %}Курс{% endblock %}
+{% block title %}{% if form.instance.pk %}Редактирование курса{% else %}Новый курс{% endif %}{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-semibold mb-4">Курс</h1>
-<form method="post" class="space-y-4">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button class="btn-primary">Сохранить</button>
-</form>
+<div class="editor-shell">
+  <div class="editor-hero">
+    <div class="editor-hero__kicker">{% if form.instance.pk %}Редактирование курса{% else %}Новый курс{% endif %}</div>
+    <h1 class="editor-hero__title">
+      {% if form.instance.pk %}
+        Обновите карточку курса
+      {% else %}
+        Создайте курс для каталога
+      {% endif %}
+    </h1>
+    <p class="editor-hero__text">
+      Заполните код, названия и описания на нужных языках. После сохранения вы сможете добавить темы,
+      литературу и контрольные вопросы.
+    </p>
+  </div>
+
+  {% if form.non_field_errors %}
+    <div class="editor-errors editor-errors--block">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <form method="post" class="editor-layout">
+    {% csrf_token %}
+
+    <div class="editor-main">
+      <section class="editor-card">
+        <div class="editor-card__header">
+          <div>
+            <div class="editor-card__eyebrow">Основное</div>
+            <h2 class="editor-card__title">Паспорт курса</h2>
+          </div>
+          <div class="editor-chip">Обязательно</div>
+        </div>
+        <div class="editor-grid editor-grid--2">
+          <div class="editor-field">
+            <label for="{{ form.code.id_for_label }}">{{ form.code.label }}</label>
+            {{ form.code }}
+            {% if form.code.errors %}<div class="editor-errors">{{ form.code.errors }}</div>{% endif %}
+          </div>
+          <div class="editor-field">
+            <label>{{ form.languages.label }}</label>
+            <div class="editor-choice-grid">
+              {% for checkbox in form.languages %}
+                <label class="editor-choice">
+                  {{ checkbox.tag }}
+                  <span>{{ checkbox.choice_label }}</span>
+                </label>
+              {% endfor %}
+            </div>
+            {% if form.languages.help_text %}<p class="editor-help">{{ form.languages.help_text }}</p>{% endif %}
+            {% if form.languages.errors %}<div class="editor-errors">{{ form.languages.errors }}</div>{% endif %}
+          </div>
+        </div>
+      </section>
+
+      <section class="editor-card">
+        <div class="editor-card__header">
+          <div>
+            <div class="editor-card__eyebrow">Названия</div>
+            <h2 class="editor-card__title">Как курс будет отображаться</h2>
+          </div>
+        </div>
+        <div class="editor-grid editor-grid--2">
+          <div class="editor-field editor-field--wide">
+            <label for="{{ form.title_ru.id_for_label }}">{{ form.title_ru.label }}</label>
+            {{ form.title_ru }}
+            {% if form.title_ru.errors %}<div class="editor-errors">{{ form.title_ru.errors }}</div>{% endif %}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.title_kz.id_for_label }}">{{ form.title_kz.label }}</label>
+            {{ form.title_kz }}
+            {% if form.title_kz.errors %}<div class="editor-errors">{{ form.title_kz.errors }}</div>{% endif %}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.title_en.id_for_label }}">{{ form.title_en.label }}</label>
+            {{ form.title_en }}
+            {% if form.title_en.errors %}<div class="editor-errors">{{ form.title_en.errors }}</div>{% endif %}
+          </div>
+        </div>
+      </section>
+
+      <section class="editor-card">
+        <div class="editor-card__header">
+          <div>
+            <div class="editor-card__eyebrow">Описание</div>
+            <h2 class="editor-card__title">Краткая аннотация курса</h2>
+          </div>
+        </div>
+        <div class="editor-grid">
+          <div class="editor-field">
+            <label for="{{ form.description_ru.id_for_label }}">{{ form.description_ru.label }}</label>
+            {{ form.description_ru }}
+            {% if form.description_ru.errors %}<div class="editor-errors">{{ form.description_ru.errors }}</div>{% endif %}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.description_kz.id_for_label }}">{{ form.description_kz.label }}</label>
+            {{ form.description_kz }}
+            {% if form.description_kz.errors %}<div class="editor-errors">{{ form.description_kz.errors }}</div>{% endif %}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.description_en.id_for_label }}">{{ form.description_en.label }}</label>
+            {{ form.description_en }}
+            {% if form.description_en.errors %}<div class="editor-errors">{{ form.description_en.errors }}</div>{% endif %}
+          </div>
+        </div>
+      </section>
+
+      <section class="editor-card">
+        <div class="editor-card__header">
+          <div>
+            <div class="editor-card__eyebrow">Доступ</div>
+            <h2 class="editor-card__title">Общий курс</h2>
+          </div>
+        </div>
+        <label class="editor-toggle">
+          {{ form.is_shared }}
+          <span>
+            <strong>{{ form.is_shared.label }}</strong>
+            <span class="editor-help">Курс смогут использовать другие преподаватели как основу для своих материалов.</span>
+          </span>
+        </label>
+        {% if form.is_shared.errors %}<div class="editor-errors">{{ form.is_shared.errors }}</div>{% endif %}
+      </section>
+
+      <div class="editor-actions">
+        <button type="submit" class="btn-primary">Сохранить курс</button>
+        {% if form.instance.pk %}
+          <a href="{% url 'course_detail' form.instance.pk %}" class="btn-secondary">Назад к курсу</a>
+        {% else %}
+          <a href="{% url 'courses_list' %}" class="btn-secondary">К списку курсов</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <aside class="editor-sidebar">
+      <div class="editor-note">
+        <h2 class="editor-note__title">Что важно заполнить</h2>
+        <ul class="editor-note__list">
+          <li>Код дисциплины должен быть коротким и понятным.</li>
+          <li>Русское название лучше заполнить обязательно, чтобы в системе всё отображалось понятно.</li>
+          <li>Если курс не нужен другим преподавателям, общий доступ можно не включать.</li>
+        </ul>
+      </div>
+      <div class="editor-note editor-note--soft">
+        <h2 class="editor-note__title">После сохранения</h2>
+        <p class="editor-help">На следующем шаге вы сможете добавить темы курса, литературу и вопросы для контроля.</p>
+      </div>
+    </aside>
+  </form>
+</div>
 {% endblock %}

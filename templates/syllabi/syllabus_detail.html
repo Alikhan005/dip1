@@ -5,13 +5,13 @@
 {% block content %}
 
 <div class="syllabus-hero flex flex-col gap-6 mb-8 border-b border-slate-200 pb-6">
-  <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-      <div>
-        <div class="flex items-center gap-3 mb-2">
+  <div class="syllabus-hero__top flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+      <div class="syllabus-hero__summary">
+        <div class="syllabus-hero__heading flex items-center gap-3 mb-2">
             <h1 class="text-3xl font-bold text-slate-800 tracking-tight">
               {{ syllabus.course.code }}
             </h1>
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold shadow-sm
+            <span class="syllabus-hero__status inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold shadow-sm
                 {% if syllabus.status == 'approved' %} bg-green-100 text-green-700 border border-green-200
                 {% elif syllabus.status == 'correction' %} bg-red-100 text-red-700 border border-red-200
                 {% elif syllabus.status == 'ai_check' %} bg-amber-100 text-amber-700 border border-amber-200
@@ -28,7 +28,7 @@
         </div>
         <p class="text-xl text-slate-600 font-medium">{{ syllabus.course.display_title }}</p>
         
-        <div class="flex flex-wrap items-center gap-6 mt-4 text-sm text-slate-500">
+        <div class="flex flex-wrap items-center gap-6 mt-4 text-sm text-slate-500 syllabus-hero__meta">
             <div class="flex items-center gap-2">
                 <i class="far fa-calendar-alt"></i>
                 <span>{{ syllabus.semester }} / {{ syllabus.academic_year }}</span>
@@ -45,7 +45,7 @@
       </div>
 
       {% if syllabus.pdf_file %}
-        <div>
+        <div class="syllabus-hero__download">
             <a href="{{ syllabus.pdf_file.url }}" download class="btn-white bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 px-4 py-2 rounded-lg font-medium shadow-sm text-sm flex items-center gap-2 transition">
                 <i class="fas fa-download text-slate-400"></i> Скачать PDF
             </a>
@@ -53,12 +53,12 @@
       {% endif %}
   </div>
 
-  <div class="mt-6">
+  <div class="syllabus-progress mt-6">
       <div class="relative">
           <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-slate-100">
                  <div style="width: {{ status_progress_width }}%" class="{{ status_progress_class }}"></div>
           </div>
-          <div class="flex justify-between text-xs text-slate-400 font-medium uppercase tracking-wider">
+          <div class="syllabus-progress__labels flex justify-between text-xs text-slate-400 font-medium uppercase tracking-wider">
               <span class="{% if status_progress_step == 'draft' %}text-slate-800 font-bold{% endif %}">Черновик</span>
               <span class="{% if status_progress_step == 'ai_check' %}text-amber-600 font-bold{% endif %}">Проверка ИИ</span>
               <span class="{% if status_progress_step == 'dean' %}text-blue-600 font-bold{% endif %}">Декан</span>
@@ -71,7 +71,7 @@
 
 
 {% if can_edit_constructor %}
-<div class="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+<div class="syllabus-constructor mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
             <h3 class="text-lg font-bold text-slate-800">Конструктор силлабуса</h3>
@@ -82,7 +82,7 @@
         <p class="mt-1 text-xs text-slate-500">
             Выбирайте один сценарий: конструктор или загрузка готового файла. Одновременно оба сценария не обязательны.
         </p>
-        <div class="flex flex-wrap gap-2">
+        <div class="syllabus-constructor__actions flex flex-wrap gap-2">
             <a href="{% url 'syllabus_edit_topics' syllabus.pk %}" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition">
                 Редактировать темы
             </a>
@@ -142,7 +142,7 @@
     </div>
 
     {% if can_upload %}
-    <div class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center bg-white hover:border-blue-400 transition group">
+    <div class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center bg-white hover:border-blue-400 transition group syllabus-correction__upload">
         <form action="{% url 'syllabus_upload_file' pk=syllabus.pk %}" method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="mb-4">
@@ -150,7 +150,7 @@
             </div>
             <h3 class="text-lg font-semibold text-slate-800">Загрузить исправленный файл</h3>
             <p class="text-sm text-slate-500 mb-6">Новый файл автоматически отправится на повторную проверку.</p>
-            <label class="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-6 rounded-lg shadow-md transition inline-flex items-center gap-2">
+            <label class="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-6 rounded-lg shadow-md transition inline-flex items-center gap-2 syllabus-correction__upload-trigger">
                 <span>Выбрать файл</span>
                 <input type="file" name="attachment" class="hidden" onchange="this.form.submit()" accept=".pdf,.docx,.doc">
             </label>
@@ -159,7 +159,7 @@
     {% endif %}
 
     {% if can_submit_dean %}
-    <div class="p-5 bg-amber-50 border border-amber-200 rounded-xl">
+    <div class="p-5 bg-amber-50 border border-amber-200 rounded-xl syllabus-correction__submit">
         <h4 class="text-base font-semibold text-amber-900 mb-2">Уверены, что силлабус корректный?</h4>
         <p class="text-sm text-amber-800 mb-4">
             Если замечания ИИ выглядят неточными, можно отправить документ декану без повторной загрузки.
@@ -167,7 +167,7 @@
         <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'review_dean' %}">
             {% csrf_token %}
             <input type="hidden" name="comment" value="Автор отправил силлабус декану, несмотря на замечания ИИ.">
-            <button class="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-lg font-semibold transition">
+            <button class="bg-amber-600 hover:bg-amber-700 text-white px-5 py-2.5 rounded-lg font-semibold transition syllabus-correction__submit-button">
                 Все равно отправить силлабус
             </button>
         </form>
@@ -180,7 +180,7 @@
 {% if syllabus.status == 'review_dean' or syllabus.status == 'review_umu' or syllabus.status == 'approved' %}
 <div class="syllabus-success-grid mb-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
     
-    <div class="lg:col-span-2 bg-green-50 border border-green-200 rounded-xl p-6 relative overflow-hidden shadow-sm">
+    <div class="lg:col-span-2 bg-green-50 border border-green-200 rounded-xl p-6 relative overflow-hidden shadow-sm syllabus-success__summary">
         <div class="absolute top-0 right-0 p-4 opacity-10">
             <i class="fas fa-check-circle text-9xl text-green-600"></i>
         </div>
@@ -196,7 +196,7 @@
                 Критических ошибок не найдено. Документ передан на следующий этап согласования.
             </p>
 
-            <div class="flex items-center gap-2 text-sm font-bold text-green-700 bg-white/60 p-3 rounded-lg inline-block mb-4">
+            <div class="flex items-center gap-2 text-sm font-bold text-green-700 bg-white/60 p-3 rounded-lg inline-block mb-4 syllabus-success__stage">
                 {% if syllabus.status == 'review_dean' %}
                     <i class="fas fa-user-tie"></i> На подписи у Декана
                 {% elif syllabus.status == 'review_umu' %}
@@ -218,7 +218,7 @@
         </div>
     </div>
 
-    <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col justify-between">
+    <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col justify-between syllabus-success__file">
         <div>
             <div class="flex items-center gap-3 mb-4">
                 <i class="fas fa-file-pdf text-3xl text-red-500"></i>
@@ -255,9 +255,9 @@
     <p class="text-xs text-slate-500 mb-6">
         Это альтернативный сценарий. Если силлабус уже собран в конструкторе выше, файл можно не загружать.
     </p>
-    <form action="{% url 'syllabus_upload_file' pk=syllabus.pk %}" method="post" enctype="multipart/form-data" class="inline-block">
+    <form action="{% url 'syllabus_upload_file' pk=syllabus.pk %}" method="post" enctype="multipart/form-data" class="inline-block syllabus-upload__form">
         {% csrf_token %}
-        <label class="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-xl shadow-lg shadow-blue-200 transition transform hover:-translate-y-1 inline-flex items-center gap-3">
+        <label class="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-xl shadow-lg shadow-blue-200 transition transform hover:-translate-y-1 inline-flex items-center gap-3 syllabus-upload__trigger">
             <i class="fas fa-cloud-upload-alt text-lg"></i>
             <span>Выбрать файл</span>
             <input type="file" name="attachment" class="hidden" onchange="this.form.submit()" accept=".pdf,.docx,.doc">
@@ -274,9 +274,9 @@
         <h3 class="text-lg font-bold">Панель управления</h3>
     </div>
     
-    <div class="flex flex-wrap gap-4">
+    <div class="syllabus-admin-panel__grid flex flex-wrap gap-4">
         {% if can_approve_dean %}
-            <div class="flex-1">
+            <div class="syllabus-admin-panel__section flex-1">
                 <p class="text-xs text-slate-400 mb-2 uppercase font-bold">Действие Декана:</p>
                 <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'review_umu' %}">
                     {% csrf_token %}
@@ -289,7 +289,7 @@
         {% endif %}
 
         {% if can_approve_umu %}
-            <div class="flex-1">
+            <div class="syllabus-admin-panel__section flex-1">
                 <p class="text-xs text-slate-400 mb-2 uppercase font-bold">Действие УМУ:</p>
                 <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'approved' %}">
                     {% csrf_token %}
@@ -301,11 +301,11 @@
             </div>
         {% endif %}
 
-        <div class="flex-1 min-w-[300px]">
+        <div class="syllabus-admin-panel__section syllabus-admin-panel__return flex-1 min-w-[300px]">
             <p class="text-xs text-slate-400 mb-2 uppercase font-bold">Если есть ошибки:</p>
             <form method="post" action="{% url 'syllabus_change_status' syllabus.pk 'correction' %}">
                 {% csrf_token %}
-                <div class="flex gap-2">
+                <div class="syllabus-admin-panel__return-row flex gap-2">
                     <input type="text" name="comment" placeholder="Укажите причину возврата..." class="flex-1 bg-slate-800 border-slate-700 text-white placeholder-slate-500 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-red-500 outline-none transition" required>
                     <button class="bg-red-600 hover:bg-red-500 text-white px-6 py-3 rounded-lg font-bold transition shadow-sm whitespace-nowrap">
                         Вернуть автору
@@ -327,7 +327,7 @@
             <span class="text-xs transition-transform group-open:rotate-180 ml-auto">▼</span>
         </summary>
         <div class="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <table class="w-full text-sm text-left">
+            <table class="w-full text-sm text-left responsive-table syllabus-history__table">
                 <thead class="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
                     <tr>
                         <th class="px-5 py-3">Версия</th>
@@ -339,10 +339,10 @@
                 <tbody class="divide-y divide-slate-100">
                     {% for revision in syllabus.revisions.all %}
                     <tr class="hover:bg-slate-50 transition">
-                        <td class="px-5 py-3 font-mono text-slate-500">v{{ revision.version_number }}</td>
-                        <td class="px-5 py-3 text-slate-700">{{ revision.note }}</td>
-                        <td class="px-5 py-3 text-slate-500">{{ revision.changed_by.get_full_name }}</td>
-                        <td class="px-5 py-3 text-right text-slate-400">{{ revision.created_at|date:"d.m H:i" }}</td>
+                        <td class="px-5 py-3 font-mono text-slate-500" data-label="Версия">v{{ revision.version_number }}</td>
+                        <td class="px-5 py-3 text-slate-700" data-label="Событие">{{ revision.note }}</td>
+                        <td class="px-5 py-3 text-slate-500" data-label="Автор">{{ revision.changed_by.get_full_name }}</td>
+                        <td class="px-5 py-3 text-right text-slate-400" data-label="Дата">{{ revision.created_at|date:"d.m H:i" }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>

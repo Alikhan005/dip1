@@ -1,176 +1,191 @@
 {% extends "base.html" %}
-{% block title %}Редактирование разделов{% endblock %}
+{% block title %}Детали силлабуса{% endblock %}
 {% block content %}
-<div class="page-header">
-  <div>
-    <div class="page-kicker">Шаг 3 из 3</div>
-    <h1 class="page-title">Детали силлабуса</h1>
-    <p class="page-subtitle">
-      Заполните ключевые разделы, которые попадут в PDF. После сохранения вернитесь к карточке и отправьте документ
-      на согласование.
+<div class="editor-shell">
+  <div class="editor-hero">
+    <div class="editor-hero__kicker">Шаг 3 из 3</div>
+    <h1 class="editor-hero__title">Заполните детали силлабуса</h1>
+    <p class="editor-hero__text">
+      Здесь указываются основные разделы документа: сведения о дисциплине, преподавателе,
+      результатах обучения, политике курса и литературе.
     </p>
-    <div class="stepper mt-3">
-      <div class="stepper__item is-done">
-        <span class="stepper__badge">1</span>
-        <span>Карточка силлабуса</span>
-      </div>
-      <div class="stepper__item is-done">
-        <span class="stepper__badge">2</span>
-        <span>Темы и недели</span>
-      </div>
-      <div class="stepper__item is-active">
-        <span class="stepper__badge">3</span>
-        <span>Детали и отправка</span>
+  </div>
+
+  {% if form.non_field_errors %}
+    <div class="editor-errors editor-errors--block">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <form method="post" class="editor-layout">
+    {% csrf_token %}
+
+    <div class="editor-main">
+      <section class="editor-card">
+        <div class="editor-card__header">
+          <div>
+            <div class="editor-card__eyebrow">Раздел 1</div>
+            <h2 class="editor-card__title">Паспорт дисциплины</h2>
+          </div>
+        </div>
+        <div class="editor-grid editor-grid--2">
+          <div class="editor-field">
+            <label for="{{ form.credits_ects.id_for_label }}">{{ form.credits_ects.label }}</label>
+            {{ form.credits_ects }}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.total_hours.id_for_label }}">{{ form.total_hours.label }}</label>
+            {{ form.total_hours }}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.contact_hours.id_for_label }}">{{ form.contact_hours.label }}</label>
+            {{ form.contact_hours }}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.self_study_hours.id_for_label }}">{{ form.self_study_hours.label }}</label>
+            {{ form.self_study_hours }}
+          </div>
+          <div class="editor-field editor-field--wide">
+            <label for="{{ form.prerequisites.id_for_label }}">{{ form.prerequisites.label }}</label>
+            {{ form.prerequisites }}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.delivery_format.id_for_label }}">{{ form.delivery_format.label }}</label>
+            {{ form.delivery_format }}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.level.id_for_label }}">{{ form.level.label }}</label>
+            {{ form.level }}
+          </div>
+          <div class="editor-field editor-field--wide">
+            <label for="{{ form.program_name.id_for_label }}">{{ form.program_name.label }}</label>
+            {{ form.program_name }}
+          </div>
+        </div>
+      </section>
+
+      <section class="editor-card">
+        <div class="editor-card__header">
+          <div>
+            <div class="editor-card__eyebrow">Раздел 2</div>
+            <h2 class="editor-card__title">Преподаватель и расписание</h2>
+          </div>
+        </div>
+        <div class="editor-grid editor-grid--2">
+          <div class="editor-field">
+            <label for="{{ form.instructor_name.id_for_label }}">{{ form.instructor_name.label }}</label>
+            {{ form.instructor_name }}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.instructor_contacts.id_for_label }}">{{ form.instructor_contacts.label }}</label>
+            {{ form.instructor_contacts }}
+          </div>
+          <div class="editor-field editor-field--wide">
+            <label for="{{ form.class_schedule.id_for_label }}">{{ form.class_schedule.label }}</label>
+            {{ form.class_schedule }}
+          </div>
+        </div>
+      </section>
+
+      <section class="editor-card">
+        <div class="editor-card__header">
+          <div>
+            <div class="editor-card__eyebrow">Раздел 3</div>
+            <h2 class="editor-card__title">Описание и результаты обучения</h2>
+          </div>
+        </div>
+        <div class="editor-grid">
+          <div class="editor-field">
+            <label for="{{ form.course_description.id_for_label }}">{{ form.course_description.label }}</label>
+            {{ form.course_description }}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.course_goal.id_for_label }}">{{ form.course_goal.label }}</label>
+            {{ form.course_goal }}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.learning_outcomes.id_for_label }}">{{ form.learning_outcomes.label }}</label>
+            {{ form.learning_outcomes }}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.teaching_methods.id_for_label }}">{{ form.teaching_methods.label }}</label>
+            {{ form.teaching_methods }}
+          </div>
+        </div>
+      </section>
+
+      <section class="editor-card">
+        <div class="editor-card__header">
+          <div>
+            <div class="editor-card__eyebrow">Раздел 4</div>
+            <h2 class="editor-card__title">Политики и оценивание</h2>
+          </div>
+        </div>
+        <div class="editor-grid">
+          <div class="editor-field">
+            <label for="{{ form.teaching_philosophy.id_for_label }}">{{ form.teaching_philosophy.label }}</label>
+            {{ form.teaching_philosophy }}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.course_policy.id_for_label }}">{{ form.course_policy.label }}</label>
+            {{ form.course_policy }}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.academic_integrity_policy.id_for_label }}">{{ form.academic_integrity_policy.label }}</label>
+            {{ form.academic_integrity_policy }}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.inclusive_policy.id_for_label }}">{{ form.inclusive_policy.label }}</label>
+            {{ form.inclusive_policy }}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.assessment_policy.id_for_label }}">{{ form.assessment_policy.label }}</label>
+            {{ form.assessment_policy }}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.grading_scale.id_for_label }}">{{ form.grading_scale.label }}</label>
+            {{ form.grading_scale }}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.appendix.id_for_label }}">{{ form.appendix.label }}</label>
+            {{ form.appendix }}
+          </div>
+        </div>
+      </section>
+
+      <section class="editor-card">
+        <div class="editor-card__header">
+          <div>
+            <div class="editor-card__eyebrow">Раздел 5</div>
+            <h2 class="editor-card__title">Литература</h2>
+          </div>
+        </div>
+        <div class="editor-grid editor-grid--2">
+          <div class="editor-field">
+            <label for="{{ form.main_literature.id_for_label }}">{{ form.main_literature.label }}</label>
+            {{ form.main_literature }}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.additional_literature.id_for_label }}">{{ form.additional_literature.label }}</label>
+            {{ form.additional_literature }}
+          </div>
+        </div>
+      </section>
+
+      <div class="editor-actions">
+        <button type="submit" class="btn-primary">Сохранить детали</button>
+        <a href="{% url 'syllabus_detail' syllabus.pk %}" class="btn-secondary">Назад к силлабусу</a>
       </div>
     </div>
-  </div>
+
+    <aside class="editor-sidebar">
+      <div class="editor-note">
+        <h2 class="editor-note__title">Подсказка</h2>
+        <ul class="editor-note__list">
+          <li>Необязательно заполнять всё сразу. Можно сохранить только обновлённые блоки.</li>
+          <li>Пишите формулировки так, чтобы они без правок попадали в итоговый PDF.</li>
+          <li>После сохранения вернитесь к карточке силлабуса и отправьте документ на согласование.</li>
+        </ul>
+      </div>
+    </aside>
+  </form>
 </div>
-
-<div class="callout mb-6">
-  <div class="callout__badge">i</div>
-  <div class="callout__text">
-    Заполняйте только те разделы, которые нужно обновить. Остальное можно оставить без изменений.
-  </div>
-</div>
-
-{% if form.non_field_errors %}
-  <div class="card p-4 border border-red-200 bg-red-50 text-red-700 mb-4">
-    {{ form.non_field_errors }}
-  </div>
-{% endif %}
-
-<form method="post" class="space-y-6">
-  {% csrf_token %}
-
-  <div class="card p-5">
-    <h2 class="text-lg font-semibold mb-4">1. Паспорт дисциплины</h2>
-    <div class="grid gap-4 md:grid-cols-2">
-      <div>
-        <label for="{{ form.credits_ects.id_for_label }}">{{ form.credits_ects.label }}</label>
-        {{ form.credits_ects }}
-      </div>
-      <div>
-        <label for="{{ form.total_hours.id_for_label }}">{{ form.total_hours.label }}</label>
-        {{ form.total_hours }}
-      </div>
-      <div>
-        <label for="{{ form.contact_hours.id_for_label }}">{{ form.contact_hours.label }}</label>
-        {{ form.contact_hours }}
-      </div>
-      <div>
-        <label for="{{ form.self_study_hours.id_for_label }}">{{ form.self_study_hours.label }}</label>
-        {{ form.self_study_hours }}
-      </div>
-      <div class="md:col-span-2">
-        <label for="{{ form.prerequisites.id_for_label }}">{{ form.prerequisites.label }}</label>
-        {{ form.prerequisites }}
-      </div>
-      <div>
-        <label for="{{ form.delivery_format.id_for_label }}">{{ form.delivery_format.label }}</label>
-        {{ form.delivery_format }}
-      </div>
-      <div>
-        <label for="{{ form.level.id_for_label }}">{{ form.level.label }}</label>
-        {{ form.level }}
-      </div>
-      <div class="md:col-span-2">
-        <label for="{{ form.program_name.id_for_label }}">{{ form.program_name.label }}</label>
-        {{ form.program_name }}
-      </div>
-    </div>
-  </div>
-
-  <div class="card p-5">
-    <h2 class="text-lg font-semibold mb-4">2. Преподаватель и расписание</h2>
-    <div class="grid gap-4 md:grid-cols-2">
-      <div>
-        <label for="{{ form.instructor_name.id_for_label }}">{{ form.instructor_name.label }}</label>
-        {{ form.instructor_name }}
-      </div>
-      <div>
-        <label for="{{ form.instructor_contacts.id_for_label }}">{{ form.instructor_contacts.label }}</label>
-        {{ form.instructor_contacts }}
-      </div>
-      <div class="md:col-span-2">
-        <label for="{{ form.class_schedule.id_for_label }}">{{ form.class_schedule.label }}</label>
-        {{ form.class_schedule }}
-      </div>
-    </div>
-  </div>
-
-  <div class="card p-5">
-    <h2 class="text-lg font-semibold mb-4">3. Описание и результаты</h2>
-    <div class="grid gap-4">
-      <div>
-        <label for="{{ form.course_description.id_for_label }}">{{ form.course_description.label }}</label>
-        {{ form.course_description }}
-      </div>
-      <div>
-        <label for="{{ form.course_goal.id_for_label }}">{{ form.course_goal.label }}</label>
-        {{ form.course_goal }}
-      </div>
-      <div>
-        <label for="{{ form.learning_outcomes.id_for_label }}">{{ form.learning_outcomes.label }}</label>
-        {{ form.learning_outcomes }}
-      </div>
-      <div>
-        <label for="{{ form.teaching_methods.id_for_label }}">{{ form.teaching_methods.label }}</label>
-        {{ form.teaching_methods }}
-      </div>
-    </div>
-  </div>
-
-  <div class="card p-5">
-    <h2 class="text-lg font-semibold mb-4">4. Политики и оценивание</h2>
-    <div class="grid gap-4">
-      <div>
-        <label for="{{ form.teaching_philosophy.id_for_label }}">{{ form.teaching_philosophy.label }}</label>
-        {{ form.teaching_philosophy }}
-      </div>
-      <div>
-        <label for="{{ form.course_policy.id_for_label }}">{{ form.course_policy.label }}</label>
-        {{ form.course_policy }}
-      </div>
-      <div>
-        <label for="{{ form.academic_integrity_policy.id_for_label }}">{{ form.academic_integrity_policy.label }}</label>
-        {{ form.academic_integrity_policy }}
-      </div>
-      <div>
-        <label for="{{ form.inclusive_policy.id_for_label }}">{{ form.inclusive_policy.label }}</label>
-        {{ form.inclusive_policy }}
-      </div>
-      <div>
-        <label for="{{ form.assessment_policy.id_for_label }}">{{ form.assessment_policy.label }}</label>
-        {{ form.assessment_policy }}
-      </div>
-      <div>
-        <label for="{{ form.grading_scale.id_for_label }}">{{ form.grading_scale.label }}</label>
-        {{ form.grading_scale }}
-      </div>
-      <div>
-        <label for="{{ form.appendix.id_for_label }}">{{ form.appendix.label }}</label>
-        {{ form.appendix }}
-      </div>
-    </div>
-  </div>
-
-  <div class="card p-5">
-    <h2 class="text-lg font-semibold mb-4">5. Литература</h2>
-    <div class="grid gap-4 md:grid-cols-2">
-      <div>
-        <label for="{{ form.main_literature.id_for_label }}">{{ form.main_literature.label }}</label>
-        {{ form.main_literature }}
-      </div>
-      <div>
-        <label for="{{ form.additional_literature.id_for_label }}">{{ form.additional_literature.label }}</label>
-        {{ form.additional_literature }}
-      </div>
-    </div>
-  </div>
-
-  <div class="flex flex-wrap gap-3">
-    <button class="btn-primary">Сохранить</button>
-    <a href="{% url 'syllabus_detail' syllabus.pk %}" class="btn-secondary">Назад</a>
-  </div>
-</form>
 {% endblock %}

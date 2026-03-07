@@ -38,6 +38,7 @@ Then edit `.env` and set:
 3. Real database `DATABASE_URL` (PostgreSQL recommended)
 4. Real SMTP credentials
 5. AI provider/API settings
+6. Keep `DJANGO_SECURE_PROXY_SSL_HEADER=HTTP_X_FORWARDED_PROTO,https` when deploying behind Render/Nginx/other reverse proxy
 
 ## 3. Production validation checklist
 

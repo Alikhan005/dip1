@@ -1,59 +1,214 @@
 {% extends "base.html" %}
-{% block title %}Тема{% endblock %}
+{% block title %}{% if form.instance.pk %}Редактирование темы{% else %}Новая тема{% endif %}{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-semibold mb-4">Тема курса {{ course.code }}</h1>
-
-<form method="post" class="space-y-6">
-  {% csrf_token %}
-
-  <div class="card p-5 space-y-4">
-    <h2 class="text-lg font-semibold">Основные данные</h2>
-    {{ form.as_p }}
+<div class="editor-shell">
+  <div class="editor-hero">
+    <div class="editor-hero__kicker">Курс {{ course.code }}</div>
+    <h1 class="editor-hero__title">
+      {% if form.instance.pk %}
+        Обновите тему курса
+      {% else %}
+        Добавьте новую тему в курс
+      {% endif %}
+    </h1>
+    <p class="editor-hero__text">
+      Заполните название темы на нужных языках, укажите количество часов и при необходимости
+      добавьте литературу и контрольные вопросы.
+    </p>
   </div>
 
-  <div class="card p-5 space-y-4">
-    <h2 class="text-lg font-semibold">Литература</h2>
-    {{ literature_formset.management_form }}
-    <div class="space-y-3">
-      {% for form in literature_formset %}
-        <div class="rounded border border-slate-200 p-3 bg-slate-50">
-          {{ form.id }}
-          <div class="grid gap-3 md:grid-cols-2">
-            <div>{{ form.title.label_tag }} {{ form.title }}</div>
-            <div>{{ form.author.label_tag }} {{ form.author }}</div>
-            <div>{{ form.year.label_tag }} {{ form.year }}</div>
-            <div>{{ form.lit_type.label_tag }} {{ form.lit_type }}</div>
+  {% if form.non_field_errors %}
+    <div class="editor-errors editor-errors--block">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <form method="post" class="editor-layout">
+    {% csrf_token %}
+
+    <div class="editor-main">
+      <section class="editor-card">
+        <div class="editor-card__header">
+          <div>
+            <div class="editor-card__eyebrow">Основное</div>
+            <h2 class="editor-card__title">Параметры темы</h2>
           </div>
-          {% if form.DELETE %}
-            <label class="text-sm text-slate-600 mt-2 block">{{ form.DELETE }} Удалить запись</label>
-          {% endif %}
         </div>
-      {% endfor %}
-    </div>
-    <p class="text-xs text-slate-500">Добавьте основную и дополнительную литературу.</p>
-  </div>
-
-  <div class="card p-5 space-y-4">
-    <h2 class="text-lg font-semibold">Контрольные вопросы</h2>
-    {{ question_formset.management_form }}
-    <div class="space-y-3">
-      {% for form in question_formset %}
-        <div class="rounded border border-slate-200 p-3 bg-slate-50">
-          {{ form.id }}
-          <div class="grid gap-3">
-            <div>{{ form.question_ru.label_tag }} {{ form.question_ru }}</div>
-            <div>{{ form.question_kz.label_tag }} {{ form.question_kz }}</div>
-            <div>{{ form.question_en.label_tag }} {{ form.question_en }}</div>
+        <div class="editor-grid editor-grid--2">
+          <div class="editor-field">
+            <label for="{{ form.order_index.id_for_label }}">{{ form.order_index.label }}</label>
+            {{ form.order_index }}
+            {% if form.order_index.errors %}<div class="editor-errors">{{ form.order_index.errors }}</div>{% endif %}
           </div>
-          {% if form.DELETE %}
-            <label class="text-sm text-slate-600 mt-2 block">{{ form.DELETE }} Удалить запись</label>
-          {% endif %}
+          <div class="editor-field">
+            <label for="{{ form.week_type.id_for_label }}">{{ form.week_type.label }}</label>
+            {{ form.week_type }}
+            {% if form.week_type.errors %}<div class="editor-errors">{{ form.week_type.errors }}</div>{% endif %}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.default_hours.id_for_label }}">{{ form.default_hours.label }}</label>
+            {{ form.default_hours }}
+            {% if form.default_hours.errors %}<div class="editor-errors">{{ form.default_hours.errors }}</div>{% endif %}
+          </div>
+          <div class="editor-field editor-field--checkbox">
+            <label class="editor-toggle">
+              {{ form.is_active }}
+              <span>
+                <strong>{{ form.is_active.label }}</strong>
+                <span class="editor-help">Неактивные темы не будут использоваться в курсе и силлабусе.</span>
+              </span>
+            </label>
+            {% if form.is_active.errors %}<div class="editor-errors">{{ form.is_active.errors }}</div>{% endif %}
+          </div>
         </div>
-      {% endfor %}
-    </div>
-    <p class="text-xs text-slate-500">Можно заполнить на нужных языках.</p>
-  </div>
+      </section>
 
-  <button class="btn-primary">Сохранить</button>
-</form>
+      <section class="editor-card">
+        <div class="editor-card__header">
+          <div>
+            <div class="editor-card__eyebrow">Названия</div>
+            <h2 class="editor-card__title">Как тема будет отображаться</h2>
+          </div>
+        </div>
+        <div class="editor-grid editor-grid--2">
+          <div class="editor-field editor-field--wide">
+            <label for="{{ form.title_ru.id_for_label }}">{{ form.title_ru.label }}</label>
+            {{ form.title_ru }}
+            {% if form.title_ru.errors %}<div class="editor-errors">{{ form.title_ru.errors }}</div>{% endif %}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.title_kz.id_for_label }}">{{ form.title_kz.label }}</label>
+            {{ form.title_kz }}
+            {% if form.title_kz.errors %}<div class="editor-errors">{{ form.title_kz.errors }}</div>{% endif %}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.title_en.id_for_label }}">{{ form.title_en.label }}</label>
+            {{ form.title_en }}
+            {% if form.title_en.errors %}<div class="editor-errors">{{ form.title_en.errors }}</div>{% endif %}
+          </div>
+        </div>
+      </section>
+
+      <section class="editor-card">
+        <div class="editor-card__header">
+          <div>
+            <div class="editor-card__eyebrow">Описание</div>
+            <h2 class="editor-card__title">Краткое содержание темы</h2>
+          </div>
+        </div>
+        <div class="editor-grid">
+          <div class="editor-field">
+            <label for="{{ form.description_ru.id_for_label }}">{{ form.description_ru.label }}</label>
+            {{ form.description_ru }}
+            {% if form.description_ru.errors %}<div class="editor-errors">{{ form.description_ru.errors }}</div>{% endif %}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.description_kz.id_for_label }}">{{ form.description_kz.label }}</label>
+            {{ form.description_kz }}
+            {% if form.description_kz.errors %}<div class="editor-errors">{{ form.description_kz.errors }}</div>{% endif %}
+          </div>
+          <div class="editor-field">
+            <label for="{{ form.description_en.id_for_label }}">{{ form.description_en.label }}</label>
+            {{ form.description_en }}
+            {% if form.description_en.errors %}<div class="editor-errors">{{ form.description_en.errors }}</div>{% endif %}
+          </div>
+        </div>
+      </section>
+
+      <section class="editor-card">
+        <div class="editor-card__header">
+          <div>
+            <div class="editor-card__eyebrow">Литература</div>
+            <h2 class="editor-card__title">Источники по теме</h2>
+          </div>
+        </div>
+        {{ literature_formset.management_form }}
+        <div class="editor-formset">
+          {% for literature_form in literature_formset %}
+            <div class="editor-formset__item">
+              {{ literature_form.id }}
+              <div class="editor-formset__grid">
+                <div class="editor-field">
+                  <label for="{{ literature_form.title.id_for_label }}">{{ literature_form.title.label }}</label>
+                  {{ literature_form.title }}
+                </div>
+                <div class="editor-field">
+                  <label for="{{ literature_form.author.id_for_label }}">{{ literature_form.author.label }}</label>
+                  {{ literature_form.author }}
+                </div>
+                <div class="editor-field">
+                  <label for="{{ literature_form.year.id_for_label }}">{{ literature_form.year.label }}</label>
+                  {{ literature_form.year }}
+                </div>
+                <div class="editor-field">
+                  <label for="{{ literature_form.lit_type.id_for_label }}">{{ literature_form.lit_type.label }}</label>
+                  {{ literature_form.lit_type }}
+                </div>
+              </div>
+              {% if literature_form.DELETE %}
+                <label class="editor-toggle editor-toggle--compact">
+                  {{ literature_form.DELETE }}
+                  <span>Удалить эту запись</span>
+                </label>
+              {% endif %}
+              {% if literature_form.errors %}<div class="editor-errors">{{ literature_form.errors }}</div>{% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="editor-card">
+        <div class="editor-card__header">
+          <div>
+            <div class="editor-card__eyebrow">Контроль</div>
+            <h2 class="editor-card__title">Контрольные вопросы</h2>
+          </div>
+        </div>
+        {{ question_formset.management_form }}
+        <div class="editor-formset">
+          {% for question_form in question_formset %}
+            <div class="editor-formset__item">
+              {{ question_form.id }}
+              <div class="editor-grid">
+                <div class="editor-field">
+                  <label for="{{ question_form.question_ru.id_for_label }}">{{ question_form.question_ru.label }}</label>
+                  {{ question_form.question_ru }}
+                </div>
+                <div class="editor-field">
+                  <label for="{{ question_form.question_kz.id_for_label }}">{{ question_form.question_kz.label }}</label>
+                  {{ question_form.question_kz }}
+                </div>
+                <div class="editor-field">
+                  <label for="{{ question_form.question_en.id_for_label }}">{{ question_form.question_en.label }}</label>
+                  {{ question_form.question_en }}
+                </div>
+              </div>
+              {% if question_form.DELETE %}
+                <label class="editor-toggle editor-toggle--compact">
+                  {{ question_form.DELETE }}
+                  <span>Удалить этот вопрос</span>
+                </label>
+              {% endif %}
+              {% if question_form.errors %}<div class="editor-errors">{{ question_form.errors }}</div>{% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <div class="editor-actions">
+        <button type="submit" class="btn-primary">Сохранить тему</button>
+        <a href="{% url 'course_detail' course.pk %}" class="btn-secondary">Назад к курсу</a>
+      </div>
+    </div>
+
+    <aside class="editor-sidebar">
+      <div class="editor-note">
+        <h2 class="editor-note__title">Рекомендации</h2>
+        <ul class="editor-note__list">
+          <li>Порядок темы лучше задавать последовательно: 1, 2, 3 и далее.</li>
+          <li>Если язык не используется, соответствующее поле можно оставить пустым.</li>
+          <li>Для каждой темы достаточно нескольких ключевых источников и 1–3 контрольных вопросов.</li>
+        </ul>
+      </div>
+    </aside>
+  </form>
+</div>
 {% endblock %}

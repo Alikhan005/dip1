@@ -7,7 +7,7 @@
     <h1 class="text-2xl font-bold text-slate-800">Банк силлабусов</h1>
     <p class="text-slate-500 text-sm mt-1">База знаний утвержденных документов для обмена опытом.</p>
   </div>
-  <a href="{% url 'syllabi_list' %}" class="btn-secondary text-sm flex items-center gap-2">
+  <a href="{% url 'syllabi_list' %}" class="btn-secondary text-sm flex items-center justify-center gap-2 w-full sm:w-auto">
     <i class="fas fa-arrow-left"></i> Мои документы
   </a>
 </div>
@@ -40,7 +40,7 @@
         {% endfor %}
       </select>
     </div>
-    <div class="flex items-end gap-2">
+    <div class="filter-actions flex items-end gap-2">
       <button class="btn-primary w-full text-sm" type="submit">Найти</button>
       <a href="{% url 'shared_syllabi_list' %}" class="btn-secondary w-auto text-sm px-3">✕</a>
     </div>
@@ -48,7 +48,7 @@
 </form>
 
 <div class="card overflow-hidden bg-white shadow-sm border border-slate-200 rounded-lg">
-  <table class="w-full text-left text-sm">
+  <table class="w-full text-left text-sm responsive-table">
     <thead class="bg-slate-50 text-slate-500 font-semibold border-b">
       <tr>
         <th class="p-4">Дисциплина</th>
@@ -60,11 +60,11 @@
     <tbody class="divide-y divide-slate-100">
     {% for syllabus in syllabi %}
       <tr class="hover:bg-slate-50 transition">
-        <td class="p-4">
+        <td class="p-4" data-label="Дисциплина">
           <div class="font-bold text-slate-800">{{ syllabus.course.code }}</div>
           <div class="text-xs text-slate-500">{{ syllabus.course.title_ru|truncatechars:60 }}</div>
         </td>
-        <td class="p-4 text-slate-700">
+        <td class="p-4 text-slate-700" data-label="Автор">
           <div class="flex items-center gap-2">
              <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
                  {{ syllabus.creator.first_name|first|default:"U" }}
@@ -72,10 +72,10 @@
              {{ syllabus.creator.get_full_name|default:syllabus.creator.username }}
           </div>
         </td>
-        <td class="p-4 text-slate-600">
+        <td class="p-4 text-slate-600" data-label="Год / семестр">
           {{ syllabus.academic_year }} ({{ syllabus.semester }})
         </td>
-        <td class="p-4 text-right flex justify-end gap-3 items-center">
+        <td class="p-4 text-right flex justify-end gap-3 items-center responsive-table__actions" data-label="Действия">
           {% if syllabus.pdf_file %}
             <a href="{{ syllabus.pdf_file.url }}" target="_blank" class="text-slate-400 hover:text-blue-600 p-1" title="Скачать PDF">
                <i class="fas fa-file-pdf"></i>
@@ -88,7 +88,7 @@
       </tr>
     {% empty %}
       <tr>
-        <td colspan="4" class="p-8 text-center text-slate-500">
+        <td colspan="4" class="p-8 text-center text-slate-500 responsive-table__empty" data-label="">
           <div class="text-4xl mb-2 text-slate-300">🔍</div>
           Нет доступных силлабусов по вашему запросу.
         </td>

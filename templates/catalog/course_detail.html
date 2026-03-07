@@ -13,7 +13,7 @@
     {% endif %}
   </div>
   {% if user == course.owner or user.role == "admin" %}
-    <a href="{% url 'course_edit' course.pk %}" class="btn-primary">Редактировать курс</a>
+    <a href="{% url 'course_edit' course.pk %}" class="btn-primary w-full sm:w-auto justify-center">Редактировать курс</a>
   {% endif %}
 </div>
 
@@ -24,15 +24,15 @@
   </div>
 </div>
 
-<div class="flex justify-between items-center mb-2">
+<div class="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-2">
   <h2 class="text-xl font-semibold">Темы курса</h2>
   {% if user == course.owner or user.role == "admin" %}
-    <a href="{% url 'topic_create' course.pk %}" class="btn-secondary">Добавить тему</a>
+    <a href="{% url 'topic_create' course.pk %}" class="btn-secondary w-full sm:w-auto justify-center">Добавить тему</a>
   {% endif %}
 </div>
 
 {% if topics %}
-  <table class="table">
+  <table class="table responsive-table">
     <thead>
       <tr class="border-b">
         <th class="p-2 text-left">№</th>
@@ -46,8 +46,8 @@
     <tbody>
     {% for topic in topics %}
       <tr class="border-b align-top">
-        <td class="p-2">{{ topic.order_index }}</td>
-        <td class="p-2">
+        <td class="p-2" data-label="№">{{ topic.order_index }}</td>
+        <td class="p-2" data-label="Название и описание">
           <div class="font-medium">
             {{ topic.title_ru|default:topic.title_en|default:topic.title_kz }}
           </div>
@@ -57,9 +57,9 @@
             </div>
           {% endif %}
         </td>
-        <td class="p-2">{{ topic.default_hours }}</td>
-        <td class="p-2">{{ topic.get_week_type_display }}</td>
-        <td class="p-2 text-sm">
+        <td class="p-2" data-label="Часы">{{ topic.default_hours }}</td>
+        <td class="p-2" data-label="Тип недели">{{ topic.get_week_type_display }}</td>
+        <td class="p-2 text-sm" data-label="Материалы">
           <details>
             <summary class="cursor-pointer link">Смотреть</summary>
             <div class="mt-2 space-y-3">
@@ -95,7 +95,7 @@
             </div>
           </details>
         </td>
-        <td class="p-2">
+        <td class="p-2 responsive-table__actions" data-label="Действие">
           {% if user == course.owner or user.role == "admin" %}
             <a href="{% url 'topic_edit' course.pk topic.pk %}" class="link">Редактировать</a>
           {% endif %}
@@ -110,7 +110,7 @@
     <div class="empty-state__text">Добавьте темы, чтобы сформировать структуру силлабуса по неделям.</div>
     {% if user == course.owner or user.role == "admin" %}
       <div class="page-actions mt-4">
-        <a href="{% url 'topic_create' course.pk %}" class="btn-primary">Добавить тему</a>
+        <a href="{% url 'topic_create' course.pk %}" class="btn-primary w-full sm:w-auto justify-center">Добавить тему</a>
       </div>
     {% endif %}
   </div>

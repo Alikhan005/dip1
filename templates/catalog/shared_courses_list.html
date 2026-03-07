@@ -3,7 +3,7 @@
 {% block content %}
 <h1 class="text-2xl font-semibold mb-4">Общие курсы</h1>
 
-<table class="table">
+<table class="table responsive-table">
   <thead>
     <tr class="border-b">
       <th class="p-2 text-left">Код</th>
@@ -15,12 +15,12 @@
   <tbody>
   {% for course in courses %}
     <tr class="border-b">
-      <td class="p-2">{{ course.code }}</td>
-      <td class="p-2">{{ course.display_title }}</td>
-      <td class="p-2">
+      <td class="p-2" data-label="Код">{{ course.code }}</td>
+      <td class="p-2" data-label="Название">{{ course.display_title }}</td>
+      <td class="p-2" data-label="Автор">
         {{ course.owner.get_full_name|default:course.owner.username }}
       </td>
-      <td class="p-2 text-right space-x-3">
+      <td class="p-2 text-right space-x-3 responsive-table__actions" data-label="Действия">
         <a href="{% url 'course_detail' course.pk %}" class="link">Открыть</a>
         {% if user != course.owner and user.can_edit_content %}
           <a href="{% url 'course_fork' course.pk %}" class="link">
@@ -31,7 +31,7 @@
     </tr>
   {% empty %}
     <tr>
-      <td colspan="4" class="p-4">Пока нет общих курсов.</td>
+      <td colspan="4" class="p-4 responsive-table__empty" data-label="">Пока нет общих курсов.</td>
     </tr>
   {% endfor %}
   </tbody>
